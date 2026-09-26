@@ -1,6 +1,7 @@
 const { rangeFor, todayDate, weeksForMonth } = require('../../utils/history-range');
 const { DEFAULT_REST_MESSAGE, decorateRestNotices, makeRestDraft } = require('../../utils/rest-notices');
 const { addDays, shareDates, normalizeShareSchedule, shareRangeText } = require('../../utils/share-schedule');
+const { loadCanvasImage } = require('../../utils/canvas-image');
 
 const INITIAL_HISTORY_DATE = todayDate();
 const SHARE_ANGEL_PATH = '/assets/share-angel-cream.png';
@@ -47,21 +48,6 @@ function resolveCanvas(page) {
     wx.createSelectorQuery().in(page).select('#shareCanvas').fields({ node: true, size: true }).exec(result => {
       const canvas = result && result[0] && result[0].node;
       if (canvas) resolve(canvas); else reject(new Error('分享画布暂时无法使用，请重新打开后再试。'));
-    });
-  });
-}
-
-function loadCanvasImage(canvas, src) {
-  return new Promise((resolve, reject) => {
-    wx.getImageInfo({
-      src,
-      success(info) {
-        const image = canvas.createImage();
-        image.onload = () => resolve(image);
-        image.onerror = () => reject(new Error('小天使素材读取失败，请重新打开后再试。'));
-        image.src = info.path;
-      },
-      fail: () => reject(new Error('小天使素材读取失败，请重新打开后再试。')),
     });
   });
 }
