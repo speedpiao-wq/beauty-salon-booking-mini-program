@@ -32,7 +32,7 @@ function posterLayout(ctx, schedule) {
   for (let fontSize = 42; fontSize >= 26; fontSize -= 2) {
     ctx.font = `600 ${fontSize}px sans-serif`;
     const cards = schedule.map(day => {
-      const tokens = day.intervals.length ? day.intervals.map(item => item.label) : ['当天暂无已预约时段'];
+      const tokens = day.intervals.length ? day.intervals.map(item => item.label) : [day.emptyMessage || '当天暂无已预约时段'];
       const lines = wrapTokens(ctx, tokens, 880);
       return { ...day, lines, height: 122 + lines.length * (fontSize + 22) };
     });
@@ -206,7 +206,7 @@ Page({
     try {
       const result = await this.call('ownerAppointments', { action: 'shareSchedule', startDate: this.data.shareStartDate, endDate: this.data.shareEndDate });
       if (version !== this.shareVersion || !this.data.isAdmin) return false;
-      const schedule = normalizeShareSchedule(result.appointments, this.data.shareStartDate, this.data.shareEndDate);
+      const schedule = normalizeShareSchedule(result.appointments, this.data.shareStartDate, this.data.shareEndDate, result.dayAvailability);
       this.setData({ shareSchedule: schedule, shareRangeText: shareRangeText(this.data.shareStartDate, this.data.shareEndDate), shareReady: true });
       return true;
     } catch (error) {
@@ -239,7 +239,7 @@ Page({
     ctx.fillText('叮咚！预约小提醒', 334, 205);
     ctx.fillStyle = '#7b6254';
     ctx.font = '32px sans-serif';
-    ctx.fillText('请避开下面已被预约的时间，安排会更从容～', 334, 265);
+    ctx.fillText('看看已约时段，再挑个合适时间～', 334, 265);
 
     ctx.fillStyle = '#fffdfa';
     roundedRect(ctx, 70, 310, 940, 72, 30); ctx.fill();
@@ -255,12 +255,12 @@ Page({
       ctx.strokeStyle = '#ead7b7'; ctx.lineWidth = 3; ctx.stroke();
       ctx.fillStyle = '#8b5d3f'; ctx.font = '700 38px sans-serif';
       ctx.fillText(card.label, 112, y + 62);
-      ctx.fillStyle = '#d59b73';
+      ctx.fillStyle = card.allDayAvailable ? '#4b9b7c' : '#d59b73';
       roundedRect(ctx, 820, y + 29, 140, 48, 24); ctx.fill();
       ctx.fillStyle = '#fff'; ctx.font = '600 25px sans-serif'; ctx.textAlign = 'center';
-      ctx.fillText(card.intervals.length ? '已约时段' : '轻松可约', 890, y + 62);
+      ctx.fillText(card.intervals.length ? '已约时段' : (card.allDayAvailable ? '全天可约' : '查看空档'), 890, y + 62);
       ctx.textAlign = 'left';
-      ctx.fillStyle = card.intervals.length ? '#49392f' : '#87786e';
+      ctx.fillStyle = card.allDayAvailable ? '#246a53' : (card.intervals.length ? '#49392f' : '#87786e');
       ctx.font = `${card.intervals.length ? '700' : '500'} ${fontSize}px sans-serif`;
       card.lines.forEach((line, index) => ctx.fillText(line, 112, y + 122 + index * (fontSize + 22)));
       y += card.height + 24;

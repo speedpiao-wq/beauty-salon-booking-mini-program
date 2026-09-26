@@ -24,7 +24,13 @@ function fixtures(extra = {}) {
       { _id: id('coowner'), role: 'owner', active: true },
       { _id: id('inactive'), role: 'owner', active: false },
     ],
-    appointments: [], settings: [{ _id: 'system', primaryResourceId: 'room' }], ...extra,
+    appointments: [],
+    settings: [{ _id: 'system', primaryResourceId: 'room', customTimeStart: '09:00', customTimeEnd: '20:00' }],
+    business_hours: Array.from({ length: 7 }, (_, weekday) => ({
+      _id: 'weekday-' + weekday, weekday, enabled: true, openingSlots: ['09:30', '12:00', '15:00', '18:00'],
+    })),
+    schedule_blocks: [],
+    ...extra,
   };
 }
 
@@ -72,6 +78,19 @@ test('invalid and cross-date schedule intervals are ignored without removing emp
   assert.deepEqual(result.map(item => item.intervals), [[], []]);
 });
 
+test('an empty day displays the explicit all-day booking message only when the cloud confirms it', () => {
+  const utility = loadUtility('share-schedule');
+  const open = plain(utility.normalizeShareSchedule([], day, day, [
+    { date: day, allDayAvailable: true, hasAvailableTime: true },
+  ]));
+  assert.equal(open[0].emptyMessage, '全天都可以约～');
+  assert.equal(open[0].allDayAvailable, true);
+
+  const uncertain = plain(utility.normalizeShareSchedule([], day, day));
+  assert.equal(uncertain[0].allDayAvailable, false);
+  assert.match(uncertain[0].emptyMessage, /实时可约时间/);
+});
+
 test('share endpoint rejects missing, ordinary and inactive accounts before reading appointments', async () => {
   for (const openid of ['', 'stranger', 'inactive']) {
     const h = createHarness(fixtures({ appointments: [appointment()] }));
@@ -100,6 +119,38 @@ test('both owner roles receive confirmed occupied times only through a privacy w
   }
 });
 
+test('an empty future day is shareable and is explicitly marked available all day', async () => {
+  const futureDate = new Date(Date.now() + 8 * 60 * 60 * 1000 + 5 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const result = await createHarness(fixtures()).function('ownerAppointments')({
+    action: 'shareSchedule', startDate: futureDate, endDate: futureDate,
+  });
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.appointments, []);
+  assert.deepEqual(plain(result.dayAvailability), [{ date: futureDate, allDayAvailable: true, hasAvailableTime: true }]);
+});
+
+test('an empty day is not marked all-day available if it has a pending booking, rest block, or closed hours', async () => {
+  const futureDate = new Date(Date.now() + 8 * 60 * 60 * 1000 + 5 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const startsAt = iso(futureDate, '10:00');
+  const pending = await createHarness(fixtures({ appointments: [
+    appointment({ status: 'pending', scheduledDate: futureDate, startsAt }),
+  ] })).function('ownerAppointments')({ action: 'shareSchedule', startDate: futureDate, endDate: futureDate });
+  assert.equal(pending.dayAvailability[0].allDayAvailable, false);
+
+  const blocked = await createHarness(fixtures({ schedule_blocks: [{
+    _id: 'rest', resourceId: 'room', active: true, startsAt: iso(futureDate, '12:00'), endsAt: iso(futureDate, '14:00'),
+  }] })).function('ownerAppointments')({ action: 'shareSchedule', startDate: futureDate, endDate: futureDate });
+  assert.equal(blocked.dayAvailability[0].allDayAvailable, false);
+
+  const dateParts = futureDate.split('-').map(Number);
+  const weekday = new Date(Date.UTC(dateParts[0], dateParts[1] - 1, dateParts[2])).getUTCDay();
+  const hours = fixtures().business_hours.map(item => item.weekday === weekday ? { ...item, enabled: false } : item);
+  const closed = await createHarness(fixtures({ business_hours: hours })).function('ownerAppointments')({
+    action: 'shareSchedule', startDate: futureDate, endDate: futureDate,
+  });
+  assert.equal(closed.dayAvailability[0].allDayAvailable, false);
+});
+
 test('share endpoint enforces the three-day and one-hundred-record boundaries', async () => {
   const h = createHarness(fixtures({ appointments: Array.from({ length: 101 }, (_, index) => appointment({ _id: `a${index}`, startsAt: iso(day, '09:00') })) }));
   const main = h.function('ownerAppointments');
@@ -113,6 +164,7 @@ test('share endpoint enforces the three-day and one-hundred-record boundaries', 
 function pageHarness() {
   let page;
   const requests = [];
+  const previews = [];
   const scope = {
     Date, console,
     Page(config) { page = config; },
@@ -120,12 +172,13 @@ function pageHarness() {
     wx: {
       cloud: { callFunction(args) { return new Promise(resolve => requests.push({ args, resolve })); } },
       pageScrollTo() {}, showToast() {}, showModal() {}, stopPullDownRefresh() {},
+      previewImage(options) { previews.push(options); },
     },
   };
   vm.runInNewContext(fs.readFileSync(path.join(root, 'miniprogram/pages/owner/index.js'), 'utf8'), scope);
   page.data = plain(page.data);
   page.setData = data => Object.assign(page.data, data);
-  return { page, requests };
+  return { page, requests, previews };
 }
 
 test('share presets set safe ranges and changing a date clears an old poster', () => {
@@ -160,6 +213,48 @@ test('schedule sharing uses the poster and customer home while invite sharing re
     title: '秀亚美容馆 · 预约小提醒', path: '/pages/home/index', imageUrl: '/tmp/poster.png',
   });
   assert.deepEqual(plain(page.onShareAppMessage()), { title: '秀亚美容馆共同店主邀请', path: '/pages/owner/index?invite=XY-ABC' });
+});
+
+test('the owner share panel accepts an empty day and displays its all-day availability', async () => {
+  const { page, requests } = pageHarness();
+  page.setData({ isAdmin: true, shareStartDate: day, shareEndDate: day });
+  const pending = page.loadShareSchedule();
+  requests[0].resolve({ result: { ok: true, appointments: [], dayAvailability: [
+    { date: day, allDayAvailable: true, hasAvailableTime: true },
+  ] } });
+  assert.equal(await pending, true);
+  assert.equal(page.data.shareSchedule[0].emptyMessage, '全天都可以约～');
+});
+
+test('the generated cream poster emphasizes the all-day message when no appointments exist', () => {
+  const { page } = pageHarness();
+  const text = [];
+  const context = {
+    measureText(value) { return { width: String(value).length * 18 }; },
+    clearRect() {}, fillRect() {}, beginPath() {}, arc() {}, fill() {}, stroke() {}, drawImage() {},
+    moveTo() {}, arcTo() {}, closePath() {},
+    fillText(value) { text.push(value); },
+  };
+  page.setData({
+    shareRangeText: '10月1日 · 周四',
+    shareSchedule: [{
+      date: day, label: '10月1日 · 周四', intervals: [],
+      allDayAvailable: true, hasAvailableTime: true, emptyMessage: '全天都可以约～',
+    }],
+  });
+  page.drawSharePoster({ getContext: () => context }, {});
+  assert.ok(text.includes('全天都可以约～'));
+  assert.ok(text.includes('全天可约'));
+});
+
+test('generated cream poster has clickable image and button preview handlers', () => {
+  const { page, previews } = pageHarness();
+  page.data.sharePosterPath = '/tmp/cream-poster.png';
+  page.previewSharePoster();
+  assert.deepEqual(plain(previews), [{ current: '/tmp/cream-poster.png', urls: ['/tmp/cream-poster.png'] }]);
+  const wxml = fs.readFileSync(path.join(root, 'miniprogram/pages/owner/index.wxml'), 'utf8');
+  assert.match(wxml, /class=\"share-poster\"[^>]*bindtap=\"previewSharePoster\"/);
+  assert.match(wxml, /class=\"mini-action secondary\" bindtap=\"previewSharePoster\">预览/);
 });
 
 test('an old cloud function returns a clear share-interface update message', async () => {

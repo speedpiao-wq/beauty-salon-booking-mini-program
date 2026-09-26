@@ -35,6 +35,7 @@ button.share-preset.is-active[size="mini"] { border-color: #c88962; background: 
 .share-times { display: flex; flex-wrap: wrap; gap: 10rpx; margin-top: 9rpx; }
 .share-times text { padding: 8rpx 14rpx; border-radius: 999rpx; background: #f8ead4; color: #5f4838; font-size: 25rpx; font-weight: 600; }
 .share-empty { margin-top: 8rpx; color: #8d7b6e; font-size: 25rpx; }
+.share-empty.all-day-available { color: #246a53; font-size: 28rpx; font-weight: 700; }
 .share-buffer-note { margin-top: 20rpx; color: #8d7b6e; font-size: 23rpx; }
 .share-generate { margin-top: 20rpx; }
 .share-poster-result { margin-top: 22rpx; padding: 18rpx; border-radius: 20rpx; background: #fff; }

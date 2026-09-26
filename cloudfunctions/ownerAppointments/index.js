@@ -73,6 +73,26 @@ function shareRange(startDate, endDate) {
   return range;
 }
 
+function shareDates(startDate, endDate) {
+  const dates = [];
+  const endMs = Date.parse(endDate + 'T00:00:00+08:00');
+  for (let cursor = Date.parse(startDate + 'T00:00:00+08:00'); cursor <= endMs; cursor += 24 * 60 * 60 * 1000) {
+    dates.push(formatBeijingDate(cursor));
+  }
+  return dates;
+}
+
+function weekdayForDate(date) {
+  const parts = date.split('-').map(Number);
+  return new Date(Date.UTC(parts[0], parts[1] - 1, parts[2])).getUTCDay();
+}
+
+function minuteOfDay(value, fallback) {
+  if (typeof value !== 'string' || !/^\d{2}:\d{2}$/.test(value)) return fallback;
+  const parts = value.split(':').map(Number);
+  return parts[0] <= 23 && parts[1] <= 59 ? parts[0] * 60 + parts[1] : fallback;
+}
+
 function historyStatusLabel(appointment, nowMs = Date.now()) {
   if (appointment.status === 'cancelled_by_customer' || appointment.status === 'cancelled_by_owner') return '已取消';
   if (appointment.status === 'confirmed') {
@@ -242,15 +262,53 @@ exports.main = async (event = {}) => {
       const startDate = cleanText(event.startDate, 10);
       const endDate = cleanText(event.endDate, 10);
       const range = shareRange(startDate, endDate);
-      const result = await db.collection('appointments').where({
-        status: 'confirmed',
-        startsAt: db.command.gte(range.startIso).and(db.command.lt(range.endExclusiveIso)),
-      }).orderBy('startsAt', 'asc').limit(101).get();
+      const [settingsResult, result] = await Promise.all([
+        db.collection('settings').doc('system').get(),
+        db.collection('appointments').where({
+          status: 'confirmed',
+          startsAt: db.command.gte(range.startIso).and(db.command.lt(range.endExclusiveIso)),
+        }).orderBy('startsAt', 'asc').limit(101).get(),
+      ]);
       if (result.data.length > 100) throw new Error('SHARE_SCHEDULE_TOO_LARGE');
+      const settings = settingsResult.data || {};
+      const resourceId = settings.primaryResourceId || 'primary-room';
+      const dates = shareDates(startDate, endDate);
+      const now = Date.now();
+      const nowInBeijing = new Date(now + 8 * 60 * 60 * 1000);
+      const today = formatBeijingDate(now);
+      const currentMinute = nowInBeijing.getUTCHours() * 60 + nowInBeijing.getUTCMinutes();
+      const opensAt = minuteOfDay(settings.customTimeStart, 9 * 60);
+      const closesAt = minuteOfDay(settings.customTimeEnd, 20 * 60);
+      const dayAvailability = await Promise.all(dates.map(async date => {
+        const dayStartMs = Date.parse(date + 'T00:00:00+08:00');
+        const dayStart = new Date(dayStartMs).toISOString();
+        const dayEnd = new Date(dayStartMs + 24 * 60 * 60 * 1000).toISOString();
+        const weekday = weekdayForDate(date);
+        const [hoursResult, pendingResult, restResult] = await Promise.all([
+          db.collection('business_hours').doc('weekday-' + weekday).get().catch(() => ({ data: null })),
+          db.collection('appointments').where({
+            status: 'pending',
+            startsAt: db.command.gte(dayStart).and(db.command.lt(dayEnd)),
+          }).limit(1).get(),
+          db.collection('schedule_blocks').where({
+            resourceId,
+            active: db.command.neq(false),
+            startsAt: db.command.lt(dayEnd),
+            endsAt: db.command.gt(dayStart),
+          }).limit(1).get(),
+        ]);
+        const hasConfirmed = result.data.some(item => formatBeijingDate(Date.parse(item.startsAt)) === date);
+        const isOpen = Boolean(hoursResult && hoursResult.data && hoursResult.data.enabled === true);
+        const hasAvailableTime = isOpen && !hasConfirmed && !pendingResult.data.length && !restResult.data.length
+          && date >= today && (date !== today || currentMinute <= closesAt);
+        const allDayAvailable = hasAvailableTime && (date !== today || currentMinute < opensAt);
+        return { date, allDayAvailable, hasAvailableTime };
+      }));
       return {
         ok: true,
         startDate,
         endDate,
+        dayAvailability,
         appointments: result.data.map(item => ({
           scheduledDate: cleanText(item.scheduledDate, 10) || formatBeijingDate(Date.parse(item.startsAt)),
           startsAt: item.startsAt,

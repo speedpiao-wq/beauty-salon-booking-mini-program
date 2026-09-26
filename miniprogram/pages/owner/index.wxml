@@ -63,7 +63,7 @@
       <view wx:if="{{shareExpanded}}" class="share-content">
         <view class="share-intro">
           <image class="share-angel" src="/assets/share-angel-cream.png" mode="aspectFit" />
-          <view><view class="card-title">小天使敲黑板</view><view class="card-copy">只展示已确认预约的占用时间，不显示客人姓名、电话和备注。</view></view>
+          <view><view class="card-title">小天使敲黑板</view><view class="card-copy">只展示已确认预约时间，不显示客人姓名、电话和备注；当天无预约时也可分享可约状态。</view></view>
         </view>
         <view class="share-presets">
           <button size="mini" class="share-preset {{sharePreset === 'day' ? 'is-active' : ''}}" data-preset="day" bindtap="selectSharePreset">单日</button>
@@ -78,12 +78,12 @@
             <view class="share-date-picker"><text>结束</text>{{shareEndDate}}⌄</view>
           </picker>
         </view>
-        <button size="default" class="ui-button secondary-button share-load" bindtap="loadShareSchedule" loading="{{shareLoading}}" disabled="{{shareLoading || shareGenerating}}">读取已确认预约时间</button>
+        <button size="default" class="ui-button secondary-button share-load" bindtap="loadShareSchedule" loading="{{shareLoading}}" disabled="{{shareLoading || shareGenerating}}">读取预约时段</button>
         <view wx:if="{{shareReady}}" class="share-schedule-preview">
           <view class="share-range-copy">{{shareRangeText}}</view>
           <view wx:for="{{shareSchedule}}" wx:key="date" class="share-day">
             <view class="share-day-title">{{item.label}}</view>
-            <view wx:if="{{!item.intervals.length}}" class="share-empty">当天暂无已预约时段</view>
+            <view wx:if="{{!item.intervals.length}}" class="share-empty {{item.allDayAvailable ? 'all-day-available' : ''}}">{{item.emptyMessage}}</view>
             <view wx:else class="share-times">
               <text wx:for="{{item.intervals}}" wx:for-item="interval" wx:key="label">{{interval.label}}</text>
             </view>
