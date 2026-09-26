@@ -257,6 +257,23 @@ test('generated cream poster has clickable image and button preview handlers', (
   assert.match(wxml, /class=\"mini-action secondary\" bindtap=\"previewSharePoster\">预览/);
 });
 
+test('Canvas 2D loads the bundled angel directly from its mini-program path', async () => {
+  const { loadCanvasImage } = loadUtility('canvas-image');
+  const image = { src: '', onload: null, onerror: null };
+  const pending = loadCanvasImage({ createImage: () => image }, '/assets/share-angel-cream.png');
+  assert.equal(image.src, '/assets/share-angel-cream.png');
+  image.onload();
+  assert.equal(await pending, image);
+});
+
+test('Canvas 2D reports a readable error when the bundled angel cannot load', async () => {
+  const { loadCanvasImage } = loadUtility('canvas-image');
+  const image = { src: '', onload: null, onerror: null };
+  const pending = loadCanvasImage({ createImage: () => image }, '/assets/share-angel-cream.png');
+  image.onerror();
+  await assert.rejects(pending, /小天使素材读取失败/);
+});
+
 test('an old cloud function returns a clear share-interface update message', async () => {
   const { page, requests } = pageHarness();
   const pending = page.call('ownerAppointments', { action: 'shareSchedule' });
