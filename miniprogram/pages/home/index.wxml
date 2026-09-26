@@ -1,0 +1,57 @@
+<view class="page-shell home-page">
+  <view class="brand-panel" bindlongpress="openOwner" aria-label="秀亚美容馆；店主可长按进入管理">
+    <view class="brand-mark">白兰</view>
+    <view class="brand-copy">
+      <view class="brand-name">秀亚美容馆</view>
+      <view class="brand-subtitle">专属护理预约</view>
+    </view>
+    <view class="brand-label">预约</view>
+  </view>
+  <view wx:for="{{restNotices}}" wx:key="startsAt" class="rest-notice">
+    <view class="rest-notice-label">☁ {{item.stateLabel}}</view>
+    <view class="rest-notice-message">{{item.message}}</view>
+    <view class="rest-notice-time">{{item.timeLabel}}</view>
+  </view>
+  <view wx:if="{{restNoticeError}}" class="rest-notice-time">{{restNoticeError}}</view>
+  <view class="section-heading">
+    <view class="section-title">选择护理项目</view>
+    <text class="section-note">共 {{services.length}} 项</text>
+  </view>
+  <view class="service-list">
+    <button wx:for="{{services}}" wx:key="_id" size="default"
+      class="ui-button service-card {{selectedServiceId === item._id ? 'is-selected' : ''}}"
+      data-id="{{item._id}}" bindtap="selectService" hover-class="tap-feedback"
+      aria-label="{{item.name}}，{{item.durationMinutes}}分钟{{selectedServiceId === item._id ? '，已选择' : ''}}">
+      <view class="service-number">0{{index + 1}}</view>
+      <view class="service-copy">
+        <view class="service-name">{{item.name}}</view>
+        <view class="service-description">{{item.description}}</view>
+      </view>
+      <view class="service-meta">
+        <text class="service-duration">{{item.durationMinutes}}分钟</text>
+        <view class="selection-mark">{{selectedServiceId === item._id ? '✓' : '+'}}</view>
+      </view>
+    </button>
+  </view>
+  <view wx:if="{{!loading && !cloudConnected}}" class="error-message">{{connectionText}}，请下拉重试。</view>
+  <view class="service-help">选择项目后，可自行选择到店日期和时间。</view>
+  <view class="my-bookings-link" bindtap="openMyBookings" hover-class="tap-feedback">
+    <text>查看我的预约</text><text>›</text>
+  </view>
+  <view class="version-label">版本 v{{appVersion}}</view>
+  <view wx:if="{{isOwner}}" class="owner-summary">
+    <view class="summary-heading"><text>已确认预约</text><text class="summary-more" bindtap="openOwner">查看全部 ›</text></view>
+    <view wx:if="{{!ownerAppointments.length}}" class="summary-empty">暂无待到店的已确认预约</view>
+    <view wx:for="{{ownerAppointments}}" wx:key="id" class="summary-row">
+      <text class="summary-customer">{{item.customerName}}</text><text class="summary-date">{{item.scheduledDate}} {{item.scheduledTime}}</text>
+    </view>
+    <view wx:if="{{ownerSummaryMore}}" class="summary-empty">展示最近5条，其余可进入预约台查看</view>
+  </view>
+  <view class="action-dock">
+    <view class="dock-caption"><text>无需在线支付</text><text>不自动获取手机号</text></view>
+    <button size="default" class="ui-button primary-button" loading="{{loading}}"
+      disabled="{{loading || !cloudConnected}}" bindtap="startBooking" hover-class="tap-feedback">
+      <text class="button-label">选择预约时间</text>
+    </button>
+  </view>
+</view>

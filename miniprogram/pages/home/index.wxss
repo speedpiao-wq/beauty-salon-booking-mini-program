@@ -1,0 +1,52 @@
+.brand-panel {
+  display: flex; align-items: center; padding: 30rpx 28rpx;
+  border-radius: 28rpx; background: #174c3d; color: #fff;
+}
+.brand-mark {
+  display: flex; width: 78rpx; height: 78rpx; flex: 0 0 78rpx;
+  align-items: center; justify-content: center;
+  border: 1rpx solid #7da591; border-radius: 20rpx;
+  background: #2d604e; font-size: 32rpx; font-family: "Songti SC", serif;
+}
+.brand-copy { flex: 1; min-width: 0; margin-left: 22rpx; }
+.brand-name { font-size: 40rpx; font-weight: 600; letter-spacing: 3rpx; }
+.brand-subtitle { margin-top: 6rpx; color: #d8e7de; font-size: 28rpx; }
+.brand-label { align-self: flex-start; font-size: 30rpx; font-weight: 600; color: #d9e4d0; }
+.service-list { display: flex; flex-direction: column; }
+button.service-card.ui-button[size="default"] {
+  justify-content: flex-start; min-height: 158rpx; padding: 24rpx;
+  border: 2rpx solid #e0e8e3; border-radius: 24rpx;
+  margin-bottom: 18rpx; background: #fff; text-align: left; color: #203a32;
+}
+button.service-card.ui-button.is-selected[size="default"] {
+  border-color: #26734f; background: #edf5ef; box-shadow: 0 6rpx 18rpx rgba(34,79,57,.05);
+}
+.service-number { font-size: 26rpx; color: #698172; font-weight: 400; align-self: flex-start; margin: 5rpx 18rpx 0 0; }
+.service-copy { flex: 1; min-width: 0; }
+.service-name { font-size: 34rpx; font-weight: 600; line-height: 1.4; }
+.service-description { margin-top: 10rpx; color: #596f62; font-size: 28rpx; font-weight: 400; line-height: 1.5; }
+.service-meta { display: flex; flex-direction: column; align-items: flex-end; margin-left: 16rpx; flex: 0 0 auto; }
+.service-duration { font-size: 28rpx; font-weight: 500; color: #426450; }
+.selection-mark {
+  width: 42rpx; height: 42rpx; display: flex; align-items: center; justify-content: center;
+  margin-top: 14rpx; border: 2rpx solid #c8d7cd; border-radius: 50%; color: #71897b; font-size: 30rpx;
+}
+.is-selected .selection-mark { color: #fff; background: #26734f; border-color: #26734f; }
+.service-help { color: #61746b; font-size: 28rpx; margin-top: 8rpx; line-height: 1.7; }
+.my-bookings-link {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-top: 22rpx; padding: 22rpx 24rpx; border: 2rpx solid #dce6e0;
+  border-radius: 20rpx; background: #fff; color: #244f40; font-size: 30rpx;
+}
+.version-label { margin-top: 14rpx; color: #8da097; font-size: 23rpx; text-align: center; }
+.owner-summary { margin-top: 24rpx; padding: 22rpx 24rpx; border: 2rpx solid #dce6e0; border-radius: 20rpx; background: #fff; }
+.summary-heading { display: flex; justify-content: space-between; align-items: center; color: #244f40; font-size: 30rpx; font-weight: 600; }
+.summary-more { color: #61746b; font-size: 25rpx; font-weight: 400; }
+.summary-row { display: flex; align-items: center; justify-content: space-between; gap: 16rpx; margin-top: 14rpx; font-size: 27rpx; }
+.summary-customer { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.summary-date { flex-shrink: 0; color: #526c60; }
+.summary-empty { margin-top: 14rpx; color: #71897b; font-size: 26rpx; }
+@media (max-width: 350px) {
+  .service-number { display: none; }
+  .brand-label { display: none; }
+}

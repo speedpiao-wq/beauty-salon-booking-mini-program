@@ -1,0 +1,54 @@
+page {
+  background: #f3f6f4;
+  color: #203a32;
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 32rpx;
+  line-height: 1.5;
+}
+view, button, input, picker, scroll-view { box-sizing: border-box; }
+button::after { border: 0; }
+/* style v2 的 button:not([size=mini]) 带默认宽度和 padding，显式覆盖。 */
+button.ui-button[size="default"] {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 22rpx;
+  font-family: inherit;
+  font-size: 34rpx;
+  font-weight: 600;
+  line-height: 1.3;
+  box-sizing: border-box;
+}
+button.primary-button.ui-button[size="default"] {
+  height: 100rpx;
+  background: #174c3d;
+  color: #fff;
+}
+button.primary-button.ui-button[disabled] { background: #bdcbc5; color: #fff; }
+button.secondary-button.ui-button[size="default"] {
+  height: 100rpx;
+  border: 2rpx solid #c2d0c9;
+  background: #fff;
+  color: #244f40;
+}
+.tap-feedback { opacity: .8; }
+.rest-notice { margin-top: 24rpx; padding: 24rpx; border: 2rpx solid #e7d8bc; border-radius: 22rpx; background: #fff8e9; }
+.rest-notice-label { color: #826846; font-size: 25rpx; }
+.rest-notice-message { margin-top: 8rpx; color: #5c472d; font-size: 31rpx; font-weight: 600; overflow-wrap: anywhere; }
+.rest-notice-time { margin-top: 10rpx; color: #826846; font-size: 25rpx; }
+.page-shell { padding: 28rpx 32rpx calc(220rpx + env(safe-area-inset-bottom)); }
+.section-heading { display: flex; align-items: center; justify-content: space-between; margin: 32rpx 0 20rpx; }
+.section-title { font-size: 38rpx; font-weight: 600; letter-spacing: 1rpx; }
+.section-note { font-size: 28rpx; color: #62786e; }
+.action-dock {
+  position: fixed; z-index: 5; left: 0; right: 0; bottom: 0;
+  padding: 20rpx 32rpx calc(20rpx + env(safe-area-inset-bottom));
+  border-top: 1rpx solid #dce6e0; background: #fff;
+}
+.dock-caption { display: flex; justify-content: space-between; margin-bottom: 16rpx; font-size: 28rpx; color: #526c60; }
+.error-message { padding: 18rpx 22rpx; margin-top: 20rpx; border-radius: 16rpx; background: #fff0eb; color: #963f2b; font-size: 30rpx; }

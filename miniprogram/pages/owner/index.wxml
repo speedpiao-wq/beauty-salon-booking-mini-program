@@ -1,0 +1,218 @@
+<view class="page-shell owner-page">
+  <view class="owner-hero">
+    <view class="hero-eyebrow">秀亚美容馆</view>
+    <view class="hero-title">店主预约台</view>
+    <view class="hero-copy" wx:if="{{isAdmin && admin.role === 'super_admin'}}">创始人</view>
+    <view class="hero-copy" wx:elif="{{isAdmin}}">{{admin.displayName}} · 共同店主</view>
+    <view class="hero-copy" wx:else>仅已授权的微信账号可以处理客人预约</view>
+  </view>
+
+  <view wx:if="{{loading}}" class="state-card">正在验证店主身份…</view>
+  <view wx:if="{{error}}" class="error-message">{{error}}</view>
+
+  <block wx:if="{{!loading && !isAdmin}}">
+    <view wx:if="{{ownerBindingStatus === 'pending'}}" class="setup-card">
+      <view class="card-title">绑定创始人</view>
+      <view class="card-copy">仅第一次设置使用。绑定后，该账号可以邀请并管理共同店主。</view>
+      <label class="owner-field"><text>一次性绑定码</text><input value="{{setupCode}}" password placeholder="请输入绑定码" data-field="setupCode" bindinput="updateField" /></label>
+      <button size="default" class="ui-button primary-button" loading="{{working}}" disabled="{{working}}" bindtap="claimPrimary"><text>绑定为创始人</text></button>
+    </view>
+    <view wx:elif="{{hasInviteToken}}" class="setup-card">
+      <view class="card-title">店主身份验证</view>
+      <view class="card-copy">此区域仅限创始人和受邀共同店主。请输入创始人发送的一次性邀请码。</view>
+      <label class="owner-field"><text>共同店主邀请码</text><input value="{{inviteInput}}" placeholder="例如：XY-1234ABCD" data-field="inviteInput" bindinput="updateField" /></label>
+      <button size="default" class="ui-button primary-button" loading="{{working}}" disabled="{{working}}" bindtap="acceptInvite"><text>使用邀请码加入</text></button>
+    </view>
+    <view wx:else class="state-card">当前微信没有店主权限</view>
+  </block>
+
+  <block wx:if="{{!loading && isAdmin}}">
+    <view class="rest-panel">
+      <button size="default" class="ui-button secondary-button rest-toggle" bindtap="toggleRestPanel" hover-class="tap-feedback"><text>☁ 休息安排</text><text>{{restExpanded ? '收起 ⌃' : '指定时段不接单 ›'}}</text></button>
+      <view wx:if="{{restExpanded}}" class="rest-content">
+        <view class="card-title">给自己放个小假</view>
+        <view class="card-copy">休息期间会在客人首页和预约页显示提示。有预约的时段需先协调，包含护理后的整理时间。</view>
+        <view class="rest-time-label">开始休息</view>
+        <view class="rest-picker-row">
+          <picker class="rest-start-date" mode="date" start="{{today}}" value="{{restStartDate}}" data-field="restStartDate" bindchange="updateRestField" disabled="{{restWorking}}"><view>{{restStartDate}} ⌄</view></picker>
+          <picker class="rest-start-time" mode="time" value="{{restStartTime}}" data-field="restStartTime" bindchange="updateRestField" disabled="{{restWorking}}"><view>{{restStartTime}} ⌄</view></picker>
+        </view>
+        <view class="rest-time-label">恢复接单</view>
+        <view class="rest-picker-row">
+          <picker class="rest-end-date" mode="date" start="{{restStartDate}}" value="{{restEndDate}}" data-field="restEndDate" bindchange="updateRestField" disabled="{{restWorking}}"><view>{{restEndDate}} ⌄</view></picker>
+          <picker class="rest-end-time" mode="time" value="{{restEndTime}}" data-field="restEndTime" bindchange="updateRestField" disabled="{{restWorking}}"><view>{{restEndTime}} ⌄</view></picker>
+        </view>
+        <view class="rest-time-label">给客人的话（选填，公开显示）</view>
+        <textarea class="rest-note" maxlength="200" value="{{restNote}}" placeholder="不填写则显示默认提示" data-field="restNote" bindinput="updateRestField" disabled="{{restWorking}}" auto-height />
+        <view class="rest-preview"><text>客人将看到</text><view>{{restNote || defaultRestMessage}}</view></view>
+        <button size="default" class="ui-button primary-button rest-save" bindtap="saveRest" loading="{{restWorking}}" disabled="{{restWorking || restLoading || !restReady}}">安排休息</button>
+        <view wx:if="{{restError}}" class="error-message">{{restError}}</view>
+        <view wx:if="{{restLoading}}" class="card-copy">正在读取休息安排…</view>
+        <view wx:elif="{{restReady && !restBlocks.length}}" class="card-copy">暂无休息安排</view>
+        <view wx:for="{{restBlocks}}" wx:key="id" class="rest-block">
+          <view class="rest-block-heading">{{item.stateLabel}}</view>
+          <view class="rest-block-time">{{item.timeLabel}}</view>
+          <view class="rest-block-message">{{item.message}}</view>
+          <button size="mini" class="mini-action secondary" data-id="{{item.id}}" bindtap="cancelRest" disabled="{{restWorking}}">恢复接单</button>
+        </view>
+        <view wx:if="{{restHasMore}}" class="card-copy">显示最近100条安排；恢复接单后可刷新查看后续安排。</view>
+      </view>
+    </view>
+    <view class="share-panel">
+      <button size="default" class="ui-button secondary-button share-toggle" bindtap="toggleSharePanel" hover-class="tap-feedback"><text>🪽 预约时间分享</text><text>{{shareExpanded ? '收起 ⌃' : '奶油色海报 ›'}}</text></button>
+      <view wx:if="{{shareExpanded}}" class="share-content">
+        <view class="share-intro">
+          <image class="share-angel" src="/assets/share-angel-cream.png" mode="aspectFit" />
+          <view><view class="card-title">小天使敲黑板</view><view class="card-copy">只展示已确认预约的占用时间，不显示客人姓名、电话和备注。</view></view>
+        </view>
+        <view class="share-presets">
+          <button size="mini" class="share-preset {{sharePreset === 'day' ? 'is-active' : ''}}" data-preset="day" bindtap="selectSharePreset">单日</button>
+          <button size="mini" class="share-preset {{sharePreset === 'threeDays' ? 'is-active' : ''}}" data-preset="threeDays" bindtap="selectSharePreset">近3天</button>
+          <button size="mini" class="share-preset {{sharePreset === 'custom' ? 'is-active' : ''}}" data-preset="custom" bindtap="selectSharePreset">自定义</button>
+        </view>
+        <view class="share-date-range">
+          <picker mode="date" start="{{today}}" value="{{shareStartDate}}" data-field="shareStartDate" bindchange="changeShareDate" disabled="{{shareLoading || shareGenerating}}">
+            <view class="share-date-picker"><text>开始</text>{{shareStartDate}}⌄</view>
+          </picker>
+          <picker mode="date" start="{{shareStartDate}}" end="{{shareMaxEnd}}" value="{{shareEndDate}}" data-field="shareEndDate" bindchange="changeShareDate" disabled="{{shareLoading || shareGenerating}}">
+            <view class="share-date-picker"><text>结束</text>{{shareEndDate}}⌄</view>
+          </picker>
+        </view>
+        <button size="default" class="ui-button secondary-button share-load" bindtap="loadShareSchedule" loading="{{shareLoading}}" disabled="{{shareLoading || shareGenerating}}">读取已确认预约时间</button>
+        <view wx:if="{{shareReady}}" class="share-schedule-preview">
+          <view class="share-range-copy">{{shareRangeText}}</view>
+          <view wx:for="{{shareSchedule}}" wx:key="date" class="share-day">
+            <view class="share-day-title">{{item.label}}</view>
+            <view wx:if="{{!item.intervals.length}}" class="share-empty">当天暂无已预约时段</view>
+            <view wx:else class="share-times">
+              <text wx:for="{{item.intervals}}" wx:for-item="interval" wx:key="label">{{interval.label}}</text>
+            </view>
+          </view>
+          <view class="share-buffer-note">以上时段包含护理与整理缓冲。</view>
+        </view>
+        <button size="default" class="ui-button primary-button share-generate" bindtap="generateSharePoster" loading="{{shareGenerating}}" disabled="{{shareLoading || shareGenerating}}">生成奶油色分享图</button>
+        <view wx:if="{{sharePosterPath}}" class="share-poster-result">
+          <image class="share-poster" src="{{sharePosterPath}}" mode="widthFix" bindtap="previewSharePoster" />
+          <view class="share-actions">
+            <button size="mini" class="mini-action secondary" bindtap="previewSharePoster">预览</button>
+            <button size="mini" class="mini-action secondary" bindtap="saveSharePoster">保存到相册</button>
+            <button size="mini" class="mini-action" open-type="share" data-kind="schedule">转发给客人</button>
+          </view>
+          <view class="share-moments-note">发朋友圈：先保存到相册，再由你在朋友圈选择这张图发布。</view>
+        </view>
+        <view wx:if="{{shareError}}" class="error-message share-error">{{shareError}}</view>
+        <canvas type="2d" id="shareCanvas" class="share-canvas" />
+      </view>
+    </view>
+    <view wx:if="{{admin.role === 'super_admin'}}" class="invite-card">
+      <view class="card-title">邀请共同店主</view>
+      <view class="card-copy">先在微信后台把对方加入体验成员，再生成一次性邀请码。邀请码24小时有效，只能使用一次。</view>
+      <label class="owner-field"><text>共同店主称呼</text><input value="{{inviteeDisplayName}}" placeholder="例如：白兰" data-field="inviteeDisplayName" bindinput="updateField" /></label>
+      <button size="default" class="ui-button secondary-button invite-generate" loading="{{working}}" disabled="{{working}}" bindtap="createInvite"><text>{{inviteCode ? '重新生成邀请码' : '生成共同店主邀请码'}}</text></button>
+      <view wx:if="{{inviteCode}}" class="invite-result">
+        <view class="invite-code" bindtap="copyInvite">{{inviteCode}}</view>
+        <view class="invite-actions">
+          <button size="mini" class="mini-action secondary" bindtap="copyInvite">复制</button>
+          <button size="mini" class="mini-action" open-type="share">分享店主入口</button>
+        </view>
+      </view>
+    </view>
+
+    <view class="section-heading"><view class="section-title">待确认预约</view><text class="section-note">{{pending.length}} 条</text></view>
+    <view wx:if="{{!pending.length}}" class="state-card">暂时没有待确认预约</view>
+    <view wx:for="{{pending}}" wx:key="id" class="booking-card pending-card">
+      <view class="booking-head"><view class="customer-name">{{item.customerName}}</view><view class="status-chip">待确认</view></view>
+      <view class="service-name">{{item.serviceName}}</view>
+      <view class="booking-time">{{item.scheduledDate}} · {{item.scheduledTime}}</view>
+      <view wx:if="{{item.contact}}" class="booking-detail">联系方式：{{item.contact}}</view>
+      <view wx:if="{{item.note}}" class="booking-detail">备注：{{item.note}}</view>
+      <button size="default" class="ui-button primary-button confirm-button" data-id="{{item.id}}" loading="{{working}}" disabled="{{working}}" bindtap="confirmAppointment"><text>接受预约</text></button>
+      <button size="default" class="ui-button cancel-button" data-id="{{item.id}}"
+        loading="{{working}}" disabled="{{working}}" bindtap="cancelAppointment"><text>取消预约</text></button>
+    </view>
+
+    <view class="section-heading"><view class="section-title">已确认预约</view><text class="section-note">{{confirmed.length}} 条</text></view>
+    <view wx:if="{{!confirmed.length}}" class="state-card">暂时没有已确认预约</view>
+    <view wx:for="{{confirmed}}" wx:key="id" class="booking-card confirmed-card">
+      <view class="booking-head"><view class="customer-name">{{item.customerName}}</view><view class="status-chip">已确认</view></view>
+      <view class="service-name">{{item.serviceName}}</view>
+      <view class="booking-time">{{item.scheduledDate}} · {{item.scheduledTime}}</view>
+      <view class="booking-detail">由 {{item.confirmedByName || '店主'}} 接受</view>
+      <button size="default" class="ui-button cancel-button" data-id="{{item.id}}"
+        loading="{{working}}" disabled="{{working}}" bindtap="cancelAppointment"><text>取消预约</text></button>
+    </view>
+
+    <view class="section-heading"><view class="section-title">已取消预约</view><text class="section-note">{{cancelled.length}} 条</text></view>
+    <view wx:if="{{!cancelled.length}}" class="state-card">暂时没有已取消预约</view>
+    <view wx:for="{{cancelled}}" wx:key="id" class="booking-card cancelled-card">
+      <view class="booking-head"><view class="customer-name">{{item.customerName}}</view><view class="status-chip">已取消</view></view>
+      <view class="service-name">{{item.serviceName}}</view>
+      <view class="booking-time">{{item.scheduledDate}} · {{item.scheduledTime}}</view>
+      <view class="booking-detail">{{item.cancelledByType === 'customer' ? '客人主动取消' : (item.cancelledByName || '店主') + '取消'}}</view>
+    </view>
+
+    <view class="section-heading"><view class="section-title">预约记录查询</view><text class="section-note">客户与项目</text></view>
+    <view class="history-query-card">
+      <view class="history-presets">
+        <button size="mini" class="history-preset {{historyPreset === 'day' ? 'is-active' : ''}}" data-preset="day" bindtap="selectHistoryPreset">按日</button>
+        <button size="mini" class="history-preset {{historyPreset === 'week' ? 'is-active' : ''}}" data-preset="week" bindtap="selectHistoryPreset">按周</button>
+        <button size="mini" class="history-preset {{historyPreset === 'month' ? 'is-active' : ''}}" data-preset="month" bindtap="selectHistoryPreset">按月</button>
+        <button size="mini" class="history-preset {{historyPreset === 'custom' ? 'is-active' : ''}}" data-preset="custom" bindtap="selectHistoryPreset">自定义</button>
+      </view>
+      <view class="history-status-filters">
+        <button size="mini" class="history-filter {{historyStatusFilter === 'all' ? 'is-active' : ''}}" data-filter="all" bindtap="selectHistoryStatus">全部</button>
+        <button size="mini" class="history-filter {{historyStatusFilter === 'booked' ? 'is-active' : ''}}" data-filter="booked" bindtap="selectHistoryStatus">已预约</button>
+        <button size="mini" class="history-filter {{historyStatusFilter === 'cancelled' ? 'is-active' : ''}}" data-filter="cancelled" bindtap="selectHistoryStatus">已取消</button>
+      </view>
+      <view wx:if="{{historyPreset === 'day'}}" class="history-date-row">
+        <text>预约日期</text>
+        <picker mode="date" value="{{historyAnchorDate}}" data-field="historyAnchorDate" bindchange="changeHistoryDate">
+          <view class="history-date-picker">{{historyAnchorDate}} <text>⌄</text></view>
+        </picker>
+      </view>
+      <view wx:elif="{{historyPreset === 'week'}}" class="history-week-controls">
+        <view class="history-date-row">
+          <text>选择月份</text>
+          <picker class="history-week-month" mode="date" fields="month" value="{{historyWeekMonth}}" bindchange="changeHistoryMonth"><view class="history-date-picker">{{historyWeekMonth}} <text>⌄</text></view></picker>
+        </view>
+        <view class="history-date-row">
+          <text>预约周次</text>
+          <picker class="history-week-picker" mode="selector" range="{{historyWeeks}}" range-key="label" value="{{historyWeekIndex}}" bindchange="changeHistoryWeek"><view class="history-date-picker">{{historyWeekLabel}} <text>⌄</text></view></picker>
+        </view>
+      </view>
+      <view wx:elif="{{historyPreset === 'month'}}" class="history-date-row">
+        <text>预约月份</text>
+        <picker class="history-month-picker" mode="date" fields="month" value="{{historyMonth}}" bindchange="changeHistoryMonth"><view class="history-date-picker">{{historyMonth}} <text>⌄</text></view></picker>
+      </view>
+      <view wx:else class="history-custom-range">
+        <picker mode="date" value="{{historyStartDate}}" data-field="historyStartDate" bindchange="changeHistoryDate">
+          <view class="history-date-picker"><text>开始</text>{{historyStartDate}}⌄</view>
+        </picker>
+        <picker mode="date" value="{{historyEndDate}}" data-field="historyEndDate" bindchange="changeHistoryDate">
+          <view class="history-date-picker"><text>结束</text>{{historyEndDate}}⌄</view>
+        </picker>
+      </view>
+      <button size="default" class="ui-button secondary-button history-search-button" loading="{{historyLoading}}" disabled="{{historyLoading}}" bindtap="loadHistory"><text>查询预约记录</text></button>
+      <view wx:if="{{historyRangeText}}" class="history-range-copy">查询范围：{{historyRangeText}}</view>
+      <view wx:if="{{historyError}}" class="error-message history-error">{{historyError}}</view>
+    </view>
+    <view wx:if="{{historyLoading}}" class="state-card">正在查询预约记录…</view>
+    <view wx:elif="{{!historyRecords.length}}" class="state-card">该时间段没有预约记录</view>
+    <view wx:else class="history-results">
+      <view wx:for="{{historyRecords}}" wx:key="id" class="history-record">
+        <view class="booking-head"><view class="customer-name">{{item.customerName}}</view><view class="history-status">{{item.historyStatusLabel}}</view></view>
+        <view class="service-name">{{item.serviceName}}</view>
+        <view class="booking-time">{{item.scheduledDate}} · {{item.scheduledTime}}</view>
+      </view>
+      <button wx:if="{{historyHasMore}}" size="default" class="ui-button secondary-button" loading="{{historyLoading}}" disabled="{{historyLoading}}" bindtap="loadMoreHistory">加载更多记录</button>
+    </view>
+
+    <view wx:if="{{admin.role === 'super_admin'}}">
+      <view class="section-heading"><view class="section-title">店主账号</view><text class="section-note">{{admins.length}} 个</text></view>
+      <view wx:for="{{admins}}" wx:key="id" class="access-card">
+        <view><view class="access-name">{{item.role === 'super_admin' ? '创始人账号' : item.displayName}}</view><view class="access-copy">{{item.role === 'super_admin' ? '创始人' : '共同店主'}} · {{item.active ? '已启用' : '已停用'}}</view></view>
+        <button wx:if="{{item.role !== 'super_admin'}}" size="mini" class="mini-action secondary" data-id="{{item.id}}" data-active="{{!item.active}}" disabled="{{working}}" bindtap="toggleAdmin">{{item.active ? '停用' : '启用'}}</button>
+      </view>
+    </view>
+  </block>
+</view>

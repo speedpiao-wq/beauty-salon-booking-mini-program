@@ -1,0 +1,51 @@
+<view class="page-shell my-bookings-page">
+  <view class="page-intro">
+    <view class="intro-eyebrow">秀亚美容馆</view>
+    <view class="intro-title">我的预约</view>
+    <view class="intro-copy">页面每10秒自动更新，也可以点击下方按钮立即刷新。</view>
+    <view wx:if="{{lastUpdatedText}}" class="updated-time">最近更新 {{lastUpdatedText}}</view>
+  </view>
+
+  <view class="view-tabs">
+    <button size="default" class="view-tab {{viewMode === 'current' ? 'is-active' : ''}}" data-view="current" bindtap="switchView">当前预约</button>
+    <button size="default" class="view-tab {{viewMode === 'history' ? 'is-active' : ''}}" data-view="history" bindtap="switchView">历史记录</button>
+  </view>
+  <view class="view-hint">{{viewMode === 'current' ? '向左滑动预约卡片，可取消预约或删除已取消记录；取消24小时后自动移入历史。' : '这里可查询已取消预约和已经结束的成功预约。'}}</view>
+
+  <view wx:if="{{loading}}" class="state-card">正在读取预约记录…</view>
+  <view wx:elif="{{error}}" class="error-message">{{error}}</view>
+  <view wx:elif="{{!appointments.length}}" class="state-card empty-state">
+    <view class="empty-title">{{viewMode === 'current' ? '暂时没有当前预约' : '暂时没有历史记录'}}</view>
+    <view class="empty-copy">{{viewMode === 'current' ? '完成预约后，会在这里显示确认状态。' : '已取消和已经结束的成功预约会保留在这里。'}}</view>
+  </view>
+
+  <view wx:else class="appointment-list">
+    <view wx:for="{{appointments}}" wx:key="id" class="swipe-row">
+      <view class="swipe-actions">
+        <button wx:if="{{item.canCancel}}" size="default" class="swipe-action-button swipe-cancel-button"
+          data-id="{{item.id}}" loading="{{workingAppointmentId === item.id}}"
+          disabled="{{workingAppointmentId !== ''}}" catchtap="cancelAppointment">取消预约</button>
+        <button wx:elif="{{item.canHide}}" size="default" class="swipe-action-button swipe-delete-button"
+          data-id="{{item.id}}" loading="{{workingAppointmentId === item.id}}"
+          disabled="{{workingAppointmentId !== ''}}" catchtap="hideCancelled">删除记录</button>
+      </view>
+      <view class="appointment-card swipe-content status-{{item.status}} {{swipeOpenId === item.id ? 'is-open' : ''}}"
+        data-id="{{item.id}}" data-actionable="{{item.canCancel || item.canHide}}"
+        bindtouchstart="startSwipe" bindtouchend="endSwipe" bindtouchcancel="closeSwipe" bindtap="closeSwipe">
+        <view class="appointment-head">
+          <view class="service-name">{{item.serviceName}}</view>
+          <view class="status-chip">{{item.statusLabel}}</view>
+        </view>
+        <view class="appointment-time">{{item.scheduledDate}} · {{item.scheduledTime}}</view>
+        <view class="status-copy">{{item.statusCopy}}</view>
+        <view class="booking-code">预约编号 {{item.bookingCode}}</view>
+      </view>
+    </view>
+  </view>
+
+  <view class="action-dock">
+    <button size="default" class="ui-button primary-button refresh-button" loading="{{loading}}"
+      disabled="{{loading}}" bindtap="refreshStatus"><text>刷新预约状态</text></button>
+    <button size="default" class="ui-button secondary-button" bindtap="backHome"><text>返回预约首页</text></button>
+  </view>
+</view>

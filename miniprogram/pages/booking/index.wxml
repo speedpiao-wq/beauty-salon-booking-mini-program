@@ -1,0 +1,142 @@
+<view wx:if="{{result}}" class="page-shell success-page">
+  <view class="success-card">
+    <view class="success-mark">✓</view>
+    <view class="success-title">预约已保存</view>
+    <view class="success-copy">请留意预约确认，期待与你见面。</view>
+    <view class="receipt">
+      <view><text>护理项目</text><text class="receipt-value">{{result.serviceName}}</text></view>
+      <view><text>到店时间</text><text class="receipt-value">{{result.scheduledDate}} {{result.scheduledTime}}</text></view>
+      <view><text>当前状态</text><text class="receipt-value">等待确认</text></view>
+      <view><text>预约编号</text><text class="receipt-code">{{result.bookingCode}}</text></view>
+    </view>
+  </view>
+  <view class="action-dock">
+    <view class="dual-actions">
+      <button size="default" class="ui-button secondary-button" bindtap="backHome"><text class="button-label">返回首页</text></button>
+      <button size="default" class="ui-button primary-button" bindtap="openMyBookings"><text class="button-label">查看我的预约</text></button>
+    </view>
+  </view>
+</view>
+
+<view wx:else class="page-shell booking-page">
+  <view class="step-bar">
+    <view class="step-item {{step === 1 ? 'is-active' : 'is-done'}}"><text class="step-number">1</text>选择时间</view>
+    <view class="step-line"></view>
+    <view class="step-item {{step === 2 ? 'is-active' : ''}}"><text class="step-number">2</text>预约信息</view>
+  </view>
+  <view class="booking-summary" wx:if="{{selectedService}}">
+    <view><view class="summary-label">已选护理</view><view class="summary-name">{{selectedService.name}}</view></view>
+    <view class="duration">{{selectedService.durationMinutes}}分钟</view>
+  </view>
+
+  <block wx:if="{{step === 1}}">
+    <view wx:for="{{restNotices}}" wx:key="startsAt" class="rest-notice">
+      <view class="rest-notice-label">☁ {{item.stateLabel}}</view>
+      <view class="rest-notice-message">{{item.message}}</view>
+      <view class="rest-notice-time">{{item.timeLabel}}</view>
+    </view>
+    <view class="section-heading"><view class="section-title">到店日期</view><text class="section-note">{{selectedDateLabel}}</text></view>
+    <scroll-view scroll-x class="date-strip" show-scrollbar="{{false}}">
+      <view class="date-row">
+        <button wx:for="{{dates}}" wx:key="value" size="default"
+          class="ui-button date-card {{selectedDate === item.value ? 'is-selected' : ''}}"
+          data-value="{{item.value}}" disabled="{{checkingNext}}" bindtap="selectDate" hover-class="tap-feedback">
+          <text class="date-weekday">{{item.weekday}}</text><text class="date-day">{{item.day}}</text>
+        </button>
+      </view>
+    </scroll-view>
+    <view class="section-heading"><view class="section-title">到店时间</view><text class="section-note">可下拉或直接输入</text></view>
+    <view class="time-panel">
+      <view class="time-fields">
+        <view class="time-picker">
+          <view class="time-field period-time-field" data-field="period" bindtap="openTimeSelector">
+            <text class="period-value">{{periods[periodIndex]}}</text><text class="chevron">⌄</text>
+          </view>
+        </view>
+        <view class="time-picker">
+          <view class="time-field number-time-field">
+            <input class="time-number-input" type="number" maxlength="2" value="{{hourInput}}"
+              data-field="hourInput" disabled="{{loading || checkingNext}}" bindinput="updateTimeInput"
+              bindblur="commitTimeInput" bindconfirm="commitTimeInput" confirm-type="done" />
+            <view class="time-unit-trigger" data-field="hour" catchtap="openTimeSelector">
+              <text class="time-unit">时</text><text class="chevron">⌄</text>
+            </view>
+          </view>
+        </view>
+        <view class="time-picker">
+          <view class="time-field number-time-field">
+            <input class="time-number-input" type="number" maxlength="2" value="{{minuteInput}}"
+              data-field="minuteInput" disabled="{{loading || checkingNext}}" bindinput="updateTimeInput"
+              bindblur="commitTimeInput" bindconfirm="commitTimeInput" confirm-type="done" />
+            <view class="time-unit-trigger" data-field="minute" catchtap="openTimeSelector">
+              <text class="time-unit">分</text><text class="chevron">⌄</text>
+            </view>
+          </view>
+        </view>
+      </view>
+      <view class="time-status {{timeStatus}}">
+        <text class="status-symbol">{{timeStatus === 'available' ? '✓' : timeStatus === 'unavailable' ? '!' : '·'}}</text>
+        <text>{{availabilityMessage}}</text>
+      </view>
+    </view>
+    <view class="booking-note">可选具体分钟；系统会检查整个护理时段是否空闲。</view>
+    <view wx:if="{{error}}" class="error-message">{{error}}</view>
+    <view class="action-dock">
+      <view class="dock-caption"><text>{{selectedDateLabel}}</text><text>{{displayTime}}</text></view>
+      <button size="default" class="ui-button primary-button" loading="{{checkingNext}}"
+        disabled="{{loading || loadingSlots || timeStatus !== 'available' || checkingNext}}" bindtap="nextStep">
+        <text class="button-label">下一步 · 填写预约信息</text>
+      </button>
+    </view>
+  </block>
+
+  <block wx:else>
+    <view class="chosen-time"><text>到店时间</text><text>{{selectedDateLabel}} · {{displayTime}}</text></view>
+    <view class="form-card">
+      <label class="field"><view class="field-label">预约称呼</view>
+        <input value="{{customerName}}" maxlength="40" placeholder="例如：王女士" placeholder-class="input-placeholder"
+          data-field="customerName" bindinput="updateField" disabled="{{submitting}}" cursor-spacing="120" />
+      </label>
+      <label class="field"><view class="field-label">联系方式<text class="optional">选填</text></view>
+        <input value="{{contact}}" maxlength="80" placeholder="微信号或手机号" placeholder-class="input-placeholder"
+          data-field="contact" bindinput="updateField" disabled="{{submitting}}" cursor-spacing="120" />
+      </label>
+      <label class="field"><view class="field-label">预约备注<text class="optional">选填</text></view>
+        <input value="{{note}}" maxlength="400" placeholder="有其他安排，可以告诉我们" placeholder-class="input-placeholder"
+          data-field="note" bindinput="updateField" disabled="{{submitting}}" cursor-spacing="120" />
+      </label>
+    </view>
+    <view class="notification-card">
+      <view class="switch-row"><text>预约结果通知</text><switch checked="{{notifyResult}}" color="#26734f"
+        data-field="notifyResult" bindchange="updateSwitch" disabled="{{submitting}}" /></view>
+      <view class="switch-row"><text>到店前提醒</text><switch checked="{{notifyReminder}}" color="#26734f"
+        data-field="notifyReminder" bindchange="updateSwitch" disabled="{{submitting}}" /></view>
+      <view class="notification-note">微信提醒正在接入，目前仅记录提醒意愿。</view>
+    </view>
+    <view wx:if="{{error}}" class="error-message">{{error}}</view>
+    <view class="action-dock">
+      <view class="dock-caption"><text>请确认到店时间和预约称呼</text></view>
+      <view class="dual-actions">
+        <button size="default" class="ui-button secondary-button" disabled="{{submitting}}" bindtap="previousStep"><text class="button-label">修改时间</text></button>
+        <button size="default" class="ui-button primary-button" loading="{{submitting}}" disabled="{{loading || submitting}}" bindtap="submitBooking"><text class="button-label">提交预约</text></button>
+      </view>
+    </view>
+  </block>
+
+  <view wx:if="{{selectorOpen}}" class="time-selector-layer">
+    <view class="time-selector-mask" catchtap="closeTimeSelector" catchtouchmove="preventTouchMove"></view>
+    <view class="time-selector-sheet {{selectorField === 'period' ? 'is-compact' : ''}}" catchtap="preventTouchMove" catchtouchmove="preventTouchMove">
+      <view class="time-selector-header">
+        <text class="time-selector-title">{{selectorTitle}}</text>
+        <view class="time-selector-close" bindtap="closeTimeSelector">取消</view>
+      </view>
+      <scroll-view scroll-y class="time-selector-options" scroll-into-view="{{selectorScrollIntoView}}" scroll-with-animation>
+        <view wx:for="{{selectorOptions}}" wx:key="value" id="selector-{{item.value}}"
+          class="time-selector-option {{selectorSelectedValue === item.value ? 'is-selected' : ''}}"
+          data-value="{{item.value}}" bindtap="selectTimeOption">
+          <text>{{item.label}}</text><text class="selector-check">{{selectorSelectedValue === item.value ? '✓' : ''}}</text>
+        </view>
+      </scroll-view>
+    </view>
+  </view>
+</view>
