@@ -53,6 +53,14 @@ test('share date validation accepts exactly one to three strict calendar days', 
   assert.equal(utility.addDays('2028-02-28', 1), '2028-02-29');
 });
 
+test('video scenario follows confirmed bookings, not whether an empty-day speech bubble exists', () => {
+  const { shareVideoKind } = loadUtility('share-schedule');
+  assert.equal(shareVideoKind([{ intervals: [], hasAvailableTime: true }]), 'empty');
+  assert.equal(shareVideoKind([{ intervals: [], hasAvailableTime: false }]), 'empty');
+  assert.equal(shareVideoKind([{ intervals: [{ label: '10:00—12:30' }] }]), 'booked');
+  assert.equal(shareVideoKind([{ intervals: [] }, { intervals: [{ label: '15:00—17:30' }] }]), 'booked');
+});
+
 test('share normalization uses Beijing time, full reserved intervals and merges overlap or adjacency', () => {
   const utility = loadUtility('share-schedule');
   const result = plain(utility.normalizeShareSchedule([
@@ -232,7 +240,7 @@ test('the generated cream poster emphasizes the all-day message when no appointm
   const context = {
     measureText(value) { return { width: String(value).length * 18 }; },
     clearRect() {}, fillRect() {}, beginPath() {}, arc() {}, fill() {}, stroke() {}, drawImage() {},
-    moveTo() {}, arcTo() {}, closePath() {},
+    moveTo() {}, lineTo() {}, arcTo() {}, closePath() {},
     fillText(value) { text.push(value); },
   };
   page.setData({
@@ -253,7 +261,7 @@ test('the poster shortens a future empty-day availability note without hiding it
   const context = {
     measureText(value) { return { width: String(value).length * 18 }; },
     clearRect() {}, fillRect() {}, beginPath() {}, arc() {}, fill() {}, stroke() {}, drawImage() {},
-    moveTo() {}, arcTo() {}, closePath() {},
+    moveTo() {}, lineTo() {}, arcTo() {}, closePath() {},
     fillText(value) { text.push(value); },
   };
   page.setData({
@@ -270,6 +278,61 @@ test('the poster shortens a future empty-day availability note without hiding it
   assert.ok(!text.includes('今天剩余时段可约，具体时间以小程序实时查询为准'));
 });
 
+test('the B-layout poster uses one centered date plate and a spacious appointment board', () => {
+  const { page } = pageHarness();
+  const text = [];
+  const context = {
+    measureText(value) { return { width: String(value).length * 18 }; },
+    clearRect() {}, fillRect() {}, beginPath() {}, arc() {}, fill() {}, stroke() {}, drawImage() {},
+    moveTo() {}, lineTo() {}, arcTo() {}, closePath() {},
+    fillText(value, x, y) { text.push({ value, x, y, font: this.font }); },
+  };
+  const label = '9月30日 · 周三';
+  page.setData({
+    shareRangeText: label,
+    shareSchedule: [{ date: day, label, intervals: [
+      { label: '10:00—12:30' }, { label: '15:00—17:30' },
+    ] }],
+  });
+  page.drawSharePoster({ getContext: () => context }, {}, null, '', true);
+  const brand = text.find(item => item.value === '秀亚美容馆');
+  const datePlate = text.find(item => item.value === label);
+  const heading = text.find(item => item.value === '已确认预约');
+  const first = text.find(item => item.value === '10:00—12:30');
+  const second = text.find(item => item.value === '15:00—17:30');
+  assert.equal(brand.x, 540);
+  assert.equal(datePlate.x, 540);
+  assert.equal(datePlate.y, 474);
+  assert.equal(heading.x, 376);
+  assert.equal(heading.y, 616);
+  assert.equal(first.x, 376);
+  assert.equal(second.x, 376);
+  assert.equal(first.font, '700 60px sans-serif');
+  assert.equal(first.y, 744);
+  assert.equal(second.y - first.y, 118);
+});
+
+test('booked video still fits a three-day sharing range with several occupied times', () => {
+  const { page } = pageHarness();
+  const text = [];
+  const context = {
+    measureText(value) { return { width: String(value).length * 18 }; },
+    clearRect() {}, fillRect() {}, beginPath() {}, arc() {}, fill() {}, stroke() {}, drawImage() {},
+    moveTo() {}, lineTo() {}, arcTo() {}, closePath() {},
+    fillText(value) { text.push(value); },
+  };
+  page.setData({
+    shareRangeText: '10月1日 至 10月3日',
+    shareSchedule: [day, day2, day3].map(date => ({
+      date, label: `${date} · 周三`, intervals: [
+        { label: '09:00—11:30' }, { label: '13:00—15:30' }, { label: '17:00—19:30' },
+      ],
+    })),
+  });
+  assert.doesNotThrow(() => page.drawSharePoster({ getContext: () => context }, {}, null, '', true));
+  assert.equal(text.filter(value => value.includes('09:00—11:30')).length, 3);
+});
+
 test('generated cream poster has clickable image and button preview handlers', () => {
   const { page, previews } = pageHarness();
   page.data.sharePosterPath = '/tmp/cream-poster.png';
@@ -278,13 +341,19 @@ test('generated cream poster has clickable image and button preview handlers', (
   const wxml = fs.readFileSync(path.join(root, 'miniprogram/pages/owner/index.wxml'), 'utf8');
   const wxss = fs.readFileSync(path.join(root, 'miniprogram/pages/owner/index.wxss'), 'utf8');
   assert.ok(wxml.includes('class="share-poster-stage"'));
-  assert.ok(wxml.includes('class="share-motion-flight"'));
+  assert.ok(wxml.includes('class="share-motion-flight share-motion-flight-{{shareSchedule.length}}"'));
   assert.ok(wxml.includes('class="share-motion-original" src="/assets/share-angel-cream.png"'));
-  assert.ok(wxml.includes('class="share-motion-expression" src="/assets/share-angel-wink-closeup.png"'));
+  assert.ok(wxml.includes('class="share-motion-expression share-motion-expression-{{shareSchedule.length}}"'));
+  assert.ok(wxml.includes('src="/assets/share-angel-wink-closeup.png"'));
   assert.ok(wxml.includes('重播小天使动效'));
   assert.ok(wxss.includes('@keyframes shareAngelFlyIn'));
-  assert.ok(wxss.includes('animation: shareAngelFlyIn 4.2s'));
-  assert.ok(wxss.includes('left: 30%; top: 36.5%; width: 40%; height: 27%'));
+  assert.ok(wxss.includes('animation: shareAngelFlyIn 5.2s'));
+  assert.ok(wxss.includes('transform: translate(-148%, -354%) scale(.32)'));
+  assert.ok(wxss.includes('left: 38.4%; top: 69.4%; width: 23.2%; height: 18.75%'));
+  assert.ok(wxss.includes('.share-motion-flight-3 { left: 42.5%; top: 76.6%; width: 15%; height: 12.1%'));
+  assert.ok(wxss.includes('linear-gradient(180deg, rgba(255,246,228,0)'));
+  assert.ok(wxml.includes('share-motion-flight-{{shareSchedule.length}}'));
+  assert.ok(wxml.includes('share-motion-cover-{{shareSchedule.length}}'));
   assert.ok(fs.existsSync(path.join(root, 'miniprogram/assets/share-angel-cream-speaking-compact.png')));
   assert.ok(fs.statSync(path.join(root, 'miniprogram/assets/share-angel-cream-speaking-compact.png')).size < 350 * 1024);
   assert.ok(fs.statSync(path.join(root, 'miniprogram/assets/share-angel-wink-closeup.png')).size < 200 * 1024);
@@ -292,22 +361,27 @@ test('generated cream poster has clickable image and button preview handlers', (
   assert.match(wxml, /class=\"mini-action secondary\" bindtap=\"previewSharePoster\">预览静态海报/);
 });
 
-test('owner share panel shows the approved booked-day GIF before a poster is generated', () => {
+test('owner share panel shows the current booked-day video preview before a poster is generated', () => {
   const wxml = fs.readFileSync(path.join(root, 'miniprogram/pages/owner/index.wxml'), 'utf8');
   const previewIndex = wxml.indexOf('src=\"/assets/share-angel-booked-demo.gif\"');
   const posterResultIndex = wxml.indexOf('class=\"share-poster-result\"');
   assert.ok(previewIndex >= 0 && previewIndex < posterResultIndex);
-  assert.ok(wxml.includes('已有预约 · 定稿动效'));
-  assert.ok(wxml.includes('图中时段为演示内容'));
-  assert.ok(wxml.includes('读取所选日期的真实预约时段'));
-  assert.ok(wxml.includes('转发、保存到相册和发朋友圈使用的是静态海报 PNG'));
+  assert.ok(wxml.includes('已有预约 · B版动效'));
+  assert.ok(wxml.includes('此示例与实际分享海报及 MP4 共用 B 版排版'));
+  assert.ok(wxml.includes('图中时段为虚构示例'));
+  assert.ok(wxml.includes('实际分享会读取所选日期的已确认预约'));
+  assert.ok(wxml.includes('生成并保存动态视频'));
+  assert.ok(wxml.includes('发朋友圈请选相册中的 MP4 动态视频'));
+  assert.ok(wxml.includes('saveShareVideo'));
+  assert.ok(wxml.includes('share-video-preview'));
   assert.ok(wxml.includes('class=\"share-motion-original\" src=\"/assets/share-angel-cream.png\"'));
   assert.ok(wxml.includes('class=\"share-motion-flapping\" src=\"/assets/share-angel-flapping.gif\"'));
   const wxss = fs.readFileSync(path.join(root, 'miniprogram/pages/owner/index.wxss'), 'utf8');
   assert.ok(wxss.includes('.share-booked-demo-gif { display: block; width: 100%; height: auto; }'));
   const js = fs.readFileSync(path.join(root, 'miniprogram/pages/owner/index.js'), 'utf8');
   assert.ok(js.includes("'/assets/share-angel-cream-speaking-compact.png'"));
-  assert.ok(js.includes('}, 4400);'), 'the poster animation overlay remains mounted through the final close-up');
+  assert.ok(js.includes('}, 5400);'), 'the poster animation overlay remains mounted through the final close-up');
+  assert.ok(js.includes('wx.saveVideoToPhotosAlbum'), 'dynamic sharing saves a video rather than a PNG');
   const gif = fs.readFileSync(path.join(root, 'miniprogram/assets/share-angel-flapping.gif'));
   assert.equal(gif.subarray(0, 6).toString('ascii'), 'GIF89a');
   assert.ok(gif.length < 400 * 1024, 'keep the animated preview small enough for the Mini Program package');

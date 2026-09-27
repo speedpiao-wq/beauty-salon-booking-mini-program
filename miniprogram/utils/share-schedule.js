@@ -96,4 +96,9 @@ function shareRangeText(startDate, endDate) {
   return startDate === endDate ? dateLabel(startDate) : `${dateLabel(startDate)} 至 ${dateLabel(endDate)}`;
 }
 
-module.exports = { addDays, shareDates, normalizeShareSchedule, shareRangeText, beijingParts };
+function shareVideoKind(schedule) {
+  return (Array.isArray(schedule) ? schedule : []).some(day => Array.isArray(day.intervals) && day.intervals.length > 0)
+    ? 'booked' : 'empty';
+}
+
+module.exports = { addDays, shareDates, normalizeShareSchedule, shareRangeText, shareVideoKind, beijingParts };
