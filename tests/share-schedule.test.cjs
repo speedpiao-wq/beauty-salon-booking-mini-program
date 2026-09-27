@@ -319,7 +319,7 @@ test('owner share panel shows the approved booked-day GIF before a poster is gen
 test('the package excludes the unused full-resolution speaking source image', () => {
   const config = JSON.parse(fs.readFileSync(path.join(root, 'project.config.json'), 'utf8'));
   assert.ok(config.packOptions.ignore.some(item => item.type === 'file'
-    && item.value === 'miniprogram/assets/share-angel-cream-speaking.png'));
+    && item.value === 'assets/share-angel-cream-speaking.png'));
 });
 
 test('Canvas 2D loads the bundled angel directly from its mini-program path', async () => {
