@@ -21,6 +21,12 @@ button.share-toggle.ui-button[size="default"] { justify-content: space-between; 
 .share-intro { display: flex; align-items: center; gap: 16rpx; }
 .share-intro > view { flex: 1; min-width: 0; }
 .share-angel { flex: 0 0 auto; width: 128rpx; height: 128rpx; }
+.share-animation-preview-card { margin-top: 22rpx; padding: 16rpx; border: 2rpx solid #ead5b4; border-radius: 20rpx; background: #fff; }
+.share-animation-preview-heading { display: flex; align-items: center; justify-content: space-between; gap: 12rpx; margin-bottom: 12rpx; color: #70452f; font-size: 27rpx; font-weight: 600; }
+.share-animation-preview-heading text:last-child { color: #9a7c64; font-size: 22rpx; font-weight: 400; white-space: nowrap; }
+.share-animation-preview { overflow: hidden; border-radius: 14rpx; background: #fff8ec; }
+.share-booked-demo-gif { display: block; width: 100%; height: auto; }
+.share-animation-preview-caption { margin-top: 10rpx; color: #806f63; font-size: 23rpx; line-height: 1.5; text-align: center; }
 .share-presets { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12rpx; margin-top: 22rpx; }
 button.share-preset[size="mini"] { display: flex; align-items: center; justify-content: center; width: 100%; height: 68rpx; margin: 0; padding: 0; border: 2rpx solid #ead5b4; border-radius: 16rpx; background: #fffdf8; color: #80654e; font-size: 26rpx; line-height: 1.3; }
 button.share-preset.is-active[size="mini"] { border-color: #c88962; background: #f7e5cb; color: #70452f; font-weight: 600; }
@@ -39,7 +45,39 @@ button.share-preset.is-active[size="mini"] { border-color: #c88962; background: 
 .share-buffer-note { margin-top: 20rpx; color: #8d7b6e; font-size: 23rpx; }
 .share-generate { margin-top: 20rpx; }
 .share-poster-result { margin-top: 22rpx; padding: 18rpx; border-radius: 20rpx; background: #fff; }
+.share-poster-stage { position: relative; overflow: hidden; border-radius: 14rpx; }
 .share-poster { display: block; width: 100%; border-radius: 14rpx; box-shadow: 0 8rpx 28rpx rgba(112, 69, 47, 0.12); }
+.share-poster-motion { position: absolute; inset: 0; pointer-events: none; }
+.share-motion-cover { position: absolute; left: 16.7%; top: 41%; width: 66.7%; height: 44%; background: #fff6e4; }
+.share-motion-flight { position: absolute; left: 3.5%; top: 2.5%; width: 12.5%; height: 10.5%; animation: shareAngelFlyIn 4.2s cubic-bezier(.22,.7,.25,1) both; }
+.share-motion-original, .share-motion-flapping { position: absolute; inset: 0; width: 100%; height: 100%; }
+.share-motion-original { animation: shareAngelOriginal 4.2s ease-in-out both; }
+.share-motion-flapping { opacity: 0; animation: shareAngelFlapping 4.2s ease-in-out both; }
+.share-motion-expression { position: absolute; left: 30%; top: 36.5%; width: 40%; height: 27%; opacity: 0; animation: shareAngelExpression 4.2s ease-in-out both; }
+.share-motion-bubble { position: absolute; left: 16.7%; top: 76.2%; display: flex; align-items: center; justify-content: center; box-sizing: border-box; width: 66.7%; height: 7%; padding: 0 10rpx; border: 2rpx solid #ead7b7; border-radius: 999rpx; background: #fffdfa; color: #70452f; font-size: 29rpx; font-weight: 700; white-space: nowrap; opacity: 0; animation: shareBubbleSpeak .5s ease-out 3.45s both; }
+@keyframes shareAngelFlyIn {
+  0% { left: 3.5%; top: 2.5%; width: 12.5%; height: 10.5%; opacity: 1; transform: rotate(-8deg); }
+  5%, 11% { left: 3.5%; top: 2.5%; width: 12.5%; height: 10.5%; opacity: 1; transform: rotate(-8deg); }
+  20% { left: 6%; top: 12%; width: 18%; height: 15%; opacity: 1; transform: rotate(-4deg); }
+  50% { left: 18%; top: 25%; width: 28%; height: 22.5%; opacity: 1; transform: rotate(3deg); }
+  76%, 94% { left: 30%; top: 36.5%; width: 40%; height: 27%; opacity: 1; transform: rotate(0); }
+  100% { left: 30%; top: 36.5%; width: 40%; height: 27%; opacity: 0; transform: rotate(0); }
+}
+@keyframes shareAngelOriginal {
+  0%, 13% { opacity: 1; }
+  19%, 100% { opacity: 0; }
+}
+@keyframes shareAngelFlapping {
+  0%, 10% { opacity: 0; }
+  17%, 72% { opacity: 1; }
+  80%, 100% { opacity: 0; }
+}
+@keyframes shareAngelExpression {
+  0%, 73% { opacity: 0; transform: scale(.9); }
+  82%, 94% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1); }
+}
+@keyframes shareBubbleSpeak { from { opacity: 0; transform: translateY(10rpx) scale(.94); } to { opacity: 1; transform: translateY(0) scale(1); } }
 .share-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 12rpx; margin-top: 18rpx; }
 .share-actions button { margin: 0; }
 .share-moments-note { margin-top: 16rpx; color: #806f63; font-size: 24rpx; text-align: center; }

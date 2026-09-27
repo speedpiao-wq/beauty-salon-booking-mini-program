@@ -247,14 +247,73 @@ test('the generated cream poster emphasizes the all-day message when no appointm
   assert.ok(text.includes('全天可约'));
 });
 
+test('the poster shortens a future empty-day availability note without hiding its meaning', () => {
+  const { page } = pageHarness();
+  const text = [];
+  const context = {
+    measureText(value) { return { width: String(value).length * 18 }; },
+    clearRect() {}, fillRect() {}, beginPath() {}, arc() {}, fill() {}, stroke() {}, drawImage() {},
+    moveTo() {}, arcTo() {}, closePath() {},
+    fillText(value) { text.push(value); },
+  };
+  page.setData({
+    shareRangeText: '9月27日 · 周日',
+    shareSchedule: [{
+      date: day, label: '9月27日 · 周日', intervals: [],
+      allDayAvailable: false, hasAvailableTime: true,
+      emptyMessage: '今天剩余时段可约，具体时间以小程序实时查询为准',
+    }],
+  });
+  page.drawSharePoster({ getContext: () => context }, {});
+  assert.ok(text.includes('这天还有空档可约～'));
+  assert.ok(text.includes('空档以小程序实时显示为准'));
+  assert.ok(!text.includes('今天剩余时段可约，具体时间以小程序实时查询为准'));
+});
+
 test('generated cream poster has clickable image and button preview handlers', () => {
   const { page, previews } = pageHarness();
   page.data.sharePosterPath = '/tmp/cream-poster.png';
   page.previewSharePoster();
   assert.deepEqual(plain(previews), [{ current: '/tmp/cream-poster.png', urls: ['/tmp/cream-poster.png'] }]);
   const wxml = fs.readFileSync(path.join(root, 'miniprogram/pages/owner/index.wxml'), 'utf8');
+  const wxss = fs.readFileSync(path.join(root, 'miniprogram/pages/owner/index.wxss'), 'utf8');
+  assert.ok(wxml.includes('class="share-poster-stage"'));
+  assert.ok(wxml.includes('class="share-motion-flight"'));
+  assert.ok(wxml.includes('class="share-motion-original" src="/assets/share-angel-cream.png"'));
+  assert.ok(wxml.includes('class="share-motion-expression" src="/assets/share-angel-wink-closeup.png"'));
+  assert.ok(wxml.includes('重播小天使动效'));
+  assert.ok(wxss.includes('@keyframes shareAngelFlyIn'));
+  assert.ok(wxss.includes('animation: shareAngelFlyIn 4.2s'));
+  assert.ok(wxss.includes('left: 30%; top: 36.5%; width: 40%; height: 27%'));
+  assert.ok(fs.existsSync(path.join(root, 'miniprogram/assets/share-angel-cream-speaking-compact.png')));
+  assert.ok(fs.statSync(path.join(root, 'miniprogram/assets/share-angel-cream-speaking-compact.png')).size < 350 * 1024);
+  assert.ok(fs.statSync(path.join(root, 'miniprogram/assets/share-angel-wink-closeup.png')).size < 200 * 1024);
   assert.match(wxml, /class=\"share-poster\"[^>]*bindtap=\"previewSharePoster\"/);
-  assert.match(wxml, /class=\"mini-action secondary\" bindtap=\"previewSharePoster\">预览/);
+  assert.match(wxml, /class=\"mini-action secondary\" bindtap=\"previewSharePoster\">预览静态海报/);
+});
+
+test('owner share panel shows the approved booked-day GIF before a poster is generated', () => {
+  const wxml = fs.readFileSync(path.join(root, 'miniprogram/pages/owner/index.wxml'), 'utf8');
+  const previewIndex = wxml.indexOf('src=\"/assets/share-angel-booked-demo.gif\"');
+  const posterResultIndex = wxml.indexOf('class=\"share-poster-result\"');
+  assert.ok(previewIndex >= 0 && previewIndex < posterResultIndex);
+  assert.ok(wxml.includes('已有预约 · 定稿动效'));
+  assert.ok(wxml.includes('图中时段为演示内容'));
+  assert.ok(wxml.includes('读取所选日期的真实预约时段'));
+  assert.ok(wxml.includes('转发、保存到相册和发朋友圈使用的是静态海报 PNG'));
+  assert.ok(wxml.includes('class=\"share-motion-original\" src=\"/assets/share-angel-cream.png\"'));
+  assert.ok(wxml.includes('class=\"share-motion-flapping\" src=\"/assets/share-angel-flapping.gif\"'));
+  const wxss = fs.readFileSync(path.join(root, 'miniprogram/pages/owner/index.wxss'), 'utf8');
+  assert.ok(wxss.includes('.share-booked-demo-gif { display: block; width: 100%; height: auto; }'));
+  const js = fs.readFileSync(path.join(root, 'miniprogram/pages/owner/index.js'), 'utf8');
+  assert.ok(js.includes("'/assets/share-angel-cream-speaking-compact.png'"));
+  assert.ok(js.includes('}, 4400);'), 'the poster animation overlay remains mounted through the final close-up');
+  const gif = fs.readFileSync(path.join(root, 'miniprogram/assets/share-angel-flapping.gif'));
+  assert.equal(gif.subarray(0, 6).toString('ascii'), 'GIF89a');
+  assert.ok(gif.length < 400 * 1024, 'keep the animated preview small enough for the Mini Program package');
+  const bookedDemo = fs.readFileSync(path.join(root, 'miniprogram/assets/share-angel-booked-demo.gif'));
+  assert.equal(bookedDemo.subarray(0, 6).toString('ascii'), 'GIF89a');
+  assert.ok(bookedDemo.length < 450 * 1024, 'keep the approved booked-day demo within the package budget');
 });
 
 test('Canvas 2D loads the bundled angel directly from its mini-program path', async () => {
