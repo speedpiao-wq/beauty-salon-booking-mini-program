@@ -31,7 +31,12 @@
   },
   "simulatorPluginLibVersion": {},
   "packOptions": {
-    "ignore": [],
+    "ignore": [
+      {
+        "type": "file",
+        "value": "miniprogram/assets/share-angel-cream-speaking.png"
+      }
+    ],
     "include": []
   },
   "editorSetting": {}
