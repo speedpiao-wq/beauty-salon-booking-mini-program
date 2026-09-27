@@ -63,7 +63,14 @@
       <view wx:if="{{shareExpanded}}" class="share-content">
         <view class="share-intro">
           <image class="share-angel" src="/assets/share-angel-cream.png" mode="aspectFit" />
-          <view><view class="card-title">小天使敲黑板</view><view class="card-copy">只展示已确认预约的占用时间，不显示客人姓名、电话和备注。</view></view>
+          <view><view class="card-title">小天使敲黑板</view><view class="card-copy">只展示已确认预约时间，不显示客人姓名、电话和备注；当天无预约时也可分享可约状态。</view></view>
+        </view>
+        <view class="share-animation-preview-card">
+          <view class="share-animation-preview-heading"><text>已有预约 · 定稿动效</text><text>循环播放 · 示例时段</text></view>
+          <view class="share-animation-preview">
+            <image class="share-booked-demo-gif" src="/assets/share-angel-booked-demo.gif" mode="widthFix" />
+          </view>
+          <view class="share-animation-preview-caption">小天使从左上角图标飞来，在预约板旁敲板。图中时段为演示内容；生成实际分享图时，会读取所选日期的真实预约时段。</view>
         </view>
         <view class="share-presets">
           <button size="mini" class="share-preset {{sharePreset === 'day' ? 'is-active' : ''}}" data-preset="day" bindtap="selectSharePreset">单日</button>
@@ -78,12 +85,12 @@
             <view class="share-date-picker"><text>结束</text>{{shareEndDate}}⌄</view>
           </picker>
         </view>
-        <button size="default" class="ui-button secondary-button share-load" bindtap="loadShareSchedule" loading="{{shareLoading}}" disabled="{{shareLoading || shareGenerating}}">读取已确认预约时间</button>
+        <button size="default" class="ui-button secondary-button share-load" bindtap="loadShareSchedule" loading="{{shareLoading}}" disabled="{{shareLoading || shareGenerating}}">读取预约时段</button>
         <view wx:if="{{shareReady}}" class="share-schedule-preview">
           <view class="share-range-copy">{{shareRangeText}}</view>
           <view wx:for="{{shareSchedule}}" wx:key="date" class="share-day">
             <view class="share-day-title">{{item.label}}</view>
-            <view wx:if="{{!item.intervals.length}}" class="share-empty">当天暂无已预约时段</view>
+            <view wx:if="{{!item.intervals.length}}" class="share-empty {{item.allDayAvailable ? 'all-day-available' : ''}}">{{item.emptyMessage}}</view>
             <view wx:else class="share-times">
               <text wx:for="{{item.intervals}}" wx:for-item="interval" wx:key="label">{{interval.label}}</text>
             </view>
@@ -92,13 +99,25 @@
         </view>
         <button size="default" class="ui-button primary-button share-generate" bindtap="generateSharePoster" loading="{{shareGenerating}}" disabled="{{shareLoading || shareGenerating}}">生成奶油色分享图</button>
         <view wx:if="{{sharePosterPath}}" class="share-poster-result">
-          <image class="share-poster" src="{{sharePosterPath}}" mode="widthFix" bindtap="previewSharePoster" />
+          <view class="share-poster-stage">
+            <image class="share-poster" src="{{sharePosterPath}}" mode="widthFix" bindtap="previewSharePoster" />
+            <view wx:if="{{shareAnimationPlaying}}" class="share-poster-motion">
+              <view class="share-motion-cover"></view>
+              <view class="share-motion-flight">
+                <image class="share-motion-original" src="/assets/share-angel-cream.png" mode="aspectFit" />
+                <image class="share-motion-flapping" src="/assets/share-angel-flapping.gif" mode="aspectFit" />
+              </view>
+              <image class="share-motion-expression" src="/assets/share-angel-wink-closeup.png" mode="aspectFit" />
+              <view class="share-motion-bubble">{{shareAnimationText}}</view>
+            </view>
+          </view>
           <view class="share-actions">
-            <button size="mini" class="mini-action secondary" bindtap="previewSharePoster">预览</button>
+            <button size="mini" class="mini-action secondary" bindtap="previewSharePoster">预览静态海报</button>
+            <button wx:if="{{shareAnimationText && !shareAnimationPlaying}}" size="mini" class="mini-action secondary" bindtap="replayShareAnimation">重播小天使动效</button>
             <button size="mini" class="mini-action secondary" bindtap="saveSharePoster">保存到相册</button>
             <button size="mini" class="mini-action" open-type="share" data-kind="schedule">转发给客人</button>
           </view>
-          <view class="share-moments-note">发朋友圈：先保存到相册，再由你在朋友圈选择这张图发布。</view>
+          <view class="share-moments-note">上方动效可循环预览；转发、保存到相册和发朋友圈使用的是静态海报 PNG。</view>
         </view>
         <view wx:if="{{shareError}}" class="error-message share-error">{{shareError}}</view>
         <canvas type="2d" id="shareCanvas" class="share-canvas" />

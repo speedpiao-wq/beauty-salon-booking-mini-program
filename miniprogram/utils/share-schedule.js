@@ -49,9 +49,12 @@ function dateLabel(value) {
   return `${Number(month)}月${Number(day)}日 · ${weekday}`;
 }
 
-function normalizeShareSchedule(items = [], startDate, endDate) {
+function normalizeShareSchedule(items = [], startDate, endDate, dayAvailability = []) {
   const dates = shareDates(startDate, endDate);
   const grouped = new Map(dates.map(date => [date, []]));
+  const availabilityByDate = new Map((Array.isArray(dayAvailability) ? dayAvailability : [])
+    .filter(item => item && dates.includes(item.date))
+    .map(item => [item.date, item]));
   for (const item of Array.isArray(items) ? items : []) {
     const start = beijingParts(item.startsAt);
     const end = beijingParts(item.reservedUntil || item.endsAt);
@@ -72,7 +75,19 @@ function normalizeShareSchedule(items = [], startDate, endDate) {
         merged.push({ ...interval, label: `${interval.start}—${interval.end}` });
       }
     });
-    return { date, label: dateLabel(date), intervals: merged.map(({ start, end, label }) => ({ start, end, label })) };
+    const availability = availabilityByDate.get(date) || {};
+    const allDayAvailable = merged.length === 0 && availability.allDayAvailable === true;
+    const hasAvailableTime = merged.length === 0 && availability.hasAvailableTime === true;
+    const emptyMessage = allDayAvailable
+      ? '全天都可以约～'
+      : hasAvailableTime
+        ? '今天剩余时段可约，具体时间以小程序实时查询为准'
+        : '当天暂无已确认预约，请查看小程序实时可约时间';
+    return {
+      date, label: dateLabel(date),
+      intervals: merged.map(({ start, end, label }) => ({ start, end, label })),
+      allDayAvailable, hasAvailableTime, emptyMessage,
+    };
   });
 }
 
