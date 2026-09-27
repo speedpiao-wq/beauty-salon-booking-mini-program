@@ -34,7 +34,7 @@
     "ignore": [
       {
         "type": "file",
-        "value": "miniprogram/assets/share-angel-cream-speaking.png"
+        "value": "assets/share-angel-cream-speaking.png"
       }
     ],
     "include": []
