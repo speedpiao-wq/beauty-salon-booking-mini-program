@@ -226,7 +226,7 @@ test('cancellation releases appointment slots and is exposed in both UIs', () =>
 test('home displays the current mini program version', () => {
   const page = homePageHarness();
   const homeWxml = fs.readFileSync(path.join(base, 'pages/home/index.wxml'), 'utf8');
-  assert.equal(page.data.appVersion, '0.1.7-dev');
+  assert.equal(page.data.appVersion, '0.1.11-dev');
   assert.match(homeWxml, /版本 v\{\{appVersion\}\}/);
 });
 test('appointment history date ranges cover day, Monday-to-Sunday week, month and custom dates', () => {

@@ -17,7 +17,7 @@ const FALLBACK_SERVICES = [
   },
 ];
 const REQUIRED_SCHEMA_VERSION = 8;
-const APP_VERSION = '0.1.7-dev';
+const APP_VERSION = '0.1.12-dev';
 
 Page({
   data: {

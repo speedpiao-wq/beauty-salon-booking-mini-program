@@ -48,20 +48,41 @@ button.share-preset.is-active[size="mini"] { border-color: #c88962; background: 
 .share-poster-stage { position: relative; overflow: hidden; border-radius: 14rpx; }
 .share-poster { display: block; width: 100%; border-radius: 14rpx; box-shadow: 0 8rpx 28rpx rgba(112, 69, 47, 0.12); }
 .share-poster-motion { position: absolute; inset: 0; pointer-events: none; }
-.share-motion-cover { position: absolute; left: 16.7%; top: 41%; width: 66.7%; height: 44%; background: #fff6e4; }
-.share-motion-flight { position: absolute; left: 3.5%; top: 2.5%; width: 12.5%; height: 10.5%; animation: shareAngelFlyIn 4.2s cubic-bezier(.22,.7,.25,1) both; }
+.share-motion-cover { position: absolute; left: 12%; width: 76%; background: linear-gradient(180deg, rgba(255,246,228,0) 0%, rgba(255,246,228,.88) 13%, rgba(255,246,228,.97) 84%, rgba(255,246,228,0) 100%); }
+.share-motion-cover-1 { top: 68%; height: 25%; }
+.share-motion-cover-2 { top: 60%; height: 24%; }
+.share-motion-cover-3 { top: 75%; height: 17%; }
+.share-motion-flight { position: absolute; left: 38.4%; top: 69.4%; width: 23.2%; height: 18.75%; transform-origin: top left; will-change: transform, opacity; animation: shareAngelFlyIn 5.2s linear both; }
+.share-motion-flight-1, .share-motion-flight-2 { left: 38.4%; top: 69.4%; width: 23.2%; height: 18.75%; }
+.share-motion-flight-3 { left: 42.5%; top: 76.6%; width: 15%; height: 12.1%; animation-name: shareAngelFlyInThreeDays; }
 .share-motion-original, .share-motion-flapping { position: absolute; inset: 0; width: 100%; height: 100%; }
-.share-motion-original { animation: shareAngelOriginal 4.2s ease-in-out both; }
-.share-motion-flapping { opacity: 0; animation: shareAngelFlapping 4.2s ease-in-out both; }
-.share-motion-expression { position: absolute; left: 30%; top: 36.5%; width: 40%; height: 27%; opacity: 0; animation: shareAngelExpression 4.2s ease-in-out both; }
-.share-motion-bubble { position: absolute; left: 16.7%; top: 76.2%; display: flex; align-items: center; justify-content: center; box-sizing: border-box; width: 66.7%; height: 7%; padding: 0 10rpx; border: 2rpx solid #ead7b7; border-radius: 999rpx; background: #fffdfa; color: #70452f; font-size: 29rpx; font-weight: 700; white-space: nowrap; opacity: 0; animation: shareBubbleSpeak .5s ease-out 3.45s both; }
+.share-motion-original { animation: shareAngelOriginal 5.2s ease-in-out both; }
+.share-motion-flapping { opacity: 0; animation: shareAngelFlapping 5.2s ease-in-out both; }
+.share-motion-expression { position: absolute; left: 38.4%; top: 69.4%; width: 23.2%; height: 18.75%; opacity: 0; animation: shareAngelExpression 5.2s ease-in-out both; }
+.share-motion-expression-1, .share-motion-expression-2 { left: 38.4%; top: 69.4%; width: 23.2%; height: 18.75%; }
+.share-motion-expression-3 { left: 42.5%; top: 76.6%; width: 15%; height: 12.1%; }
+.share-motion-bubble { position: absolute; left: 16.7%; top: 85.1%; display: flex; align-items: center; justify-content: center; box-sizing: border-box; width: 66.7%; height: 5.5%; padding: 0 10rpx; border: 2rpx solid #ead7b7; border-radius: 999rpx; background: #fffdfa; color: #70452f; font-size: 29rpx; font-weight: 700; white-space: nowrap; opacity: 0; animation: shareBubbleSpeak .5s ease-out 4.25s both; }
+.share-motion-bubble-2 { top: 78.1%; }
+.share-motion-bubble-3 { top: 85.75%; }
 @keyframes shareAngelFlyIn {
-  0% { left: 3.5%; top: 2.5%; width: 12.5%; height: 10.5%; opacity: 1; transform: rotate(-8deg); }
-  5%, 11% { left: 3.5%; top: 2.5%; width: 12.5%; height: 10.5%; opacity: 1; transform: rotate(-8deg); }
-  20% { left: 6%; top: 12%; width: 18%; height: 15%; opacity: 1; transform: rotate(-4deg); }
-  50% { left: 18%; top: 25%; width: 28%; height: 22.5%; opacity: 1; transform: rotate(3deg); }
-  76%, 94% { left: 30%; top: 36.5%; width: 40%; height: 27%; opacity: 1; transform: rotate(0); }
-  100% { left: 30%; top: 36.5%; width: 40%; height: 27%; opacity: 0; transform: rotate(0); }
+  0% { opacity: 1; transform: translate(-148%, -354%) scale(.32) rotate(-8deg); }
+  19% { opacity: 1; transform: translate(-156%, -302%) scale(.416) rotate(-4deg); }
+  29% { opacity: 1; transform: translate(-157%, -192%) scale(.576) rotate(-1deg); }
+  38.5% { opacity: 1; transform: translate(-131%, -68%) scale(.744) rotate(2deg); }
+  48% { opacity: 1; transform: translate(-68%, -2%) scale(.904) rotate(3deg); }
+  58% { opacity: 1; transform: translate(-8%, 1%) scale(.992) rotate(1deg); }
+  76%, 94% { opacity: 1; transform: translate(0, 0) scale(1) rotate(0); }
+  100% { opacity: 0; transform: translate(0, 0) scale(1) rotate(0); }
+}
+@keyframes shareAngelFlyInThreeDays {
+  0% { opacity: 1; transform: translate(-256%, -608%) scale(.494) rotate(-8deg); }
+  19% { opacity: 1; transform: translate(-268%, -524%) scale(.57) rotate(-4deg); }
+  29% { opacity: 1; transform: translate(-269%, -338%) scale(.681) rotate(-1deg); }
+  38.5% { opacity: 1; transform: translate(-224%, -124%) scale(.817) rotate(2deg); }
+  48% { opacity: 1; transform: translate(-116%, -6%) scale(.929) rotate(3deg); }
+  58% { opacity: 1; transform: translate(-12%, 2%) scale(.99) rotate(1deg); }
+  76%, 94% { opacity: 1; transform: translate(0, 0) scale(1) rotate(0); }
+  100% { opacity: 0; transform: translate(0, 0) scale(1) rotate(0); }
 }
 @keyframes shareAngelOriginal {
   0%, 13% { opacity: 1; }
@@ -80,6 +101,7 @@ button.share-preset.is-active[size="mini"] { border-color: #c88962; background: 
 @keyframes shareBubbleSpeak { from { opacity: 0; transform: translateY(10rpx) scale(.94); } to { opacity: 1; transform: translateY(0) scale(1); } }
 .share-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 12rpx; margin-top: 18rpx; }
 .share-actions button { margin: 0; }
+.share-video-preview { display: block; width: 100%; height: 800rpx; margin-top: 16rpx; border-radius: 14rpx; background: #fff6e4; }
 .share-moments-note { margin-top: 16rpx; color: #806f63; font-size: 24rpx; text-align: center; }
 .share-error { margin-top: 16rpx; }
 .share-canvas { position: fixed; left: -2000px; top: -2000px; width: 540px; height: 800px; pointer-events: none; }

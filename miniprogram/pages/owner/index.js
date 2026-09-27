@@ -1,6 +1,6 @@
 const { rangeFor, todayDate, weeksForMonth } = require('../../utils/history-range');
 const { DEFAULT_REST_MESSAGE, decorateRestNotices, makeRestDraft } = require('../../utils/rest-notices');
-const { addDays, shareDates, normalizeShareSchedule, shareRangeText } = require('../../utils/share-schedule');
+const { addDays, shareDates, normalizeShareSchedule, shareRangeText, shareVideoKind } = require('../../utils/share-schedule');
 const { loadCanvasImage } = require('../../utils/canvas-image');
 
 const INITIAL_HISTORY_DATE = todayDate();
@@ -18,33 +18,51 @@ function roundedRect(ctx, x, y, width, height, radius) {
   ctx.closePath();
 }
 
-function wrapTokens(ctx, tokens, maxWidth) {
-  const lines = [];
-  let current = '';
-  tokens.forEach(token => {
-    const candidate = current ? `${current}   ${token}` : token;
-    if (!current || ctx.measureText(candidate).width <= maxWidth) current = candidate;
-    else { lines.push(current); current = token; }
-  });
-  if (current) lines.push(current);
-  return lines.length ? lines : ['当天暂无已预约时段'];
-}
-
 function posterLayout(ctx, schedule) {
-  for (let fontSize = 42; fontSize >= 26; fontSize -= 2) {
-    ctx.font = `600 ${fontSize}px sans-serif`;
-    const cards = schedule.map(day => {
-      const emptyPosterText = day.allDayAvailable
-        ? '全天都可以约～'
-        : day.hasAvailableTime ? `${day.date === todayDate() ? '今天' : '这天'}还有空档可约～` : '请查看实时可约时段';
-      const tokens = day.intervals.length ? day.intervals.map(item => item.label) : [emptyPosterText];
-      const lines = wrapTokens(ctx, tokens, 880);
-      return { ...day, lines, height: day.intervals.length ? 122 + lines.length * (fontSize + 22) : 230 };
-    });
-    const totalHeight = cards.reduce((sum, card) => sum + card.height, 0) + Math.max(0, cards.length - 1) * 24;
-    if (totalHeight <= 1000) return { cards, fontSize };
+  if (schedule.length === 1) {
+    const day = schedule[0];
+    const count = day.intervals.length;
+    const rowStep = count > 1 ? Math.min(118, Math.floor(512 / (count - 1))) : 118;
+    let fontSize = Math.min(60, rowStep - 10);
+    while (fontSize > 30) {
+      ctx.font = `700 ${fontSize}px sans-serif`;
+      if (day.intervals.every(item => ctx.measureText(item.label).width <= 560)) break;
+      fontSize -= 2;
+    }
+    const height = Math.max(544, 338 + Math.max(0, count - 1) * rowStep);
+    if (fontSize < 30 || height > 850) throw new Error('预约时段较多，请缩短日期后分别生成分享图。');
+    return {
+      cards: [{ ...day, height, rowStep }],
+      fontSize,
+      rowStep,
+      singleDay: true,
+      cardGap: 0,
+    };
   }
-  throw new Error('预约时段较多，请缩短日期后分别生成分享图。');
+
+  const cardGap = 24;
+  const maxTotalHeight = 900;
+  const maxCardHeight = (maxTotalHeight - cardGap * (schedule.length - 1)) / schedule.length;
+  const maxIntervals = Math.max(0, ...schedule.map(day => day.intervals.length));
+  const rowStep = maxIntervals
+    ? Math.min(56, Math.floor((maxCardHeight - 92) / maxIntervals))
+    : 56;
+  let fontSize = Math.min(44, rowStep - 8);
+  while (fontSize > 30) {
+    ctx.font = `700 ${fontSize}px sans-serif`;
+    if (schedule.every(day => day.intervals.every(item => ctx.measureText(item.label).width <= 820))) break;
+    fontSize -= 2;
+  }
+  if (fontSize < 30 || rowStep < 38) throw new Error('预约时段较多，请缩短日期后分别生成分享图。');
+
+  const cards = schedule.map(day => ({
+    ...day,
+    rowStep,
+    height: day.intervals.length ? 92 + day.intervals.length * rowStep : 204,
+  }));
+  const totalHeight = cards.reduce((sum, card) => sum + card.height, 0) + cardGap * (cards.length - 1);
+  if (totalHeight > maxTotalHeight) throw new Error('预约时段较多，请缩短日期后分别生成分享图。');
+  return { cards, fontSize, rowStep, singleDay: false, cardGap };
 }
 
 function resolveCanvas(page) {
@@ -97,7 +115,7 @@ Page({
     shareExpanded: false, sharePreset: 'day', shareLoading: false, shareGenerating: false, shareReady: false,
     shareStartDate: INITIAL_HISTORY_DATE, shareEndDate: INITIAL_HISTORY_DATE, shareMaxEnd: addDays(INITIAL_HISTORY_DATE, 2),
     shareSchedule: [], shareRangeText: '', sharePosterPath: '', shareError: '',
-    shareAnimationText: '', shareAnimationPlaying: false,
+    shareAnimationText: '', shareAnimationPlaying: false, shareVideoBasePath: '', shareVideoPath: '', shareVideoKind: '', shareVideoWorking: false,
     defaultRestMessage: DEFAULT_REST_MESSAGE, today: INITIAL_HISTORY_DATE,
   },
 
@@ -141,7 +159,7 @@ Page({
     if (this.shareAnimationTimer != null) clearTimeout(this.shareAnimationTimer);
     this.shareAnimationTimer = null;
     this.setData({ isAdmin: false, admin: null, pending: [], confirmed: [], cancelled: [], admins: [], historyRecords: [], historyLoading: false, restBlocks: [], restReady: false,
-      shareSchedule: [], shareReady: false, shareLoading: false, shareGenerating: false, shareRangeText: '', sharePosterPath: '', shareAnimationText: '', shareAnimationPlaying: false });
+      shareSchedule: [], shareReady: false, shareLoading: false, shareGenerating: false, shareRangeText: '', sharePosterPath: '', shareAnimationText: '', shareAnimationPlaying: false, shareVideoBasePath: '', shareVideoPath: '', shareVideoKind: '', shareVideoWorking: false });
   },
 
   onPullDownRefresh() {
@@ -167,7 +185,7 @@ Page({
     this.shareVersion = (this.shareVersion || 0) + 1;
     if (this.shareAnimationTimer != null) clearTimeout(this.shareAnimationTimer);
     this.shareAnimationTimer = null;
-    this.setData({ shareSchedule: [], shareReady: false, shareRangeText: '', sharePosterPath: '', shareError: '', shareAnimationText: '', shareAnimationPlaying: false, ...data });
+    this.setData({ shareSchedule: [], shareReady: false, shareRangeText: '', sharePosterPath: '', shareError: '', shareAnimationText: '', shareAnimationPlaying: false, shareVideoBasePath: '', shareVideoPath: '', shareVideoKind: '', ...data });
   },
 
   selectSharePreset(event) {
@@ -199,7 +217,7 @@ Page({
     try { shareDates(this.data.shareStartDate, this.data.shareEndDate); }
     catch (error) { this.setData({ shareReady: false, shareSchedule: [], sharePosterPath: '', shareError: error.message }); return false; }
     const version = this.shareVersion = (this.shareVersion || 0) + 1;
-    this.setData({ shareLoading: true, shareReady: false, shareSchedule: [], shareRangeText: '', sharePosterPath: '', shareError: '', shareAnimationText: '', shareAnimationPlaying: false });
+    this.setData({ shareLoading: true, shareReady: false, shareSchedule: [], shareRangeText: '', sharePosterPath: '', shareError: '', shareAnimationText: '', shareAnimationPlaying: false, shareVideoBasePath: '', shareVideoPath: '', shareVideoKind: '' });
     try {
       const result = await this.call('ownerAppointments', { action: 'shareSchedule', startDate: this.data.shareStartDate, endDate: this.data.shareEndDate });
       if (version !== this.shareVersion || !this.data.isAdmin) return false;
@@ -214,89 +232,196 @@ Page({
     }
   },
 
-  drawSharePoster(canvas, angel, speakingAngel, speechText = '') {
+  drawSharePoster(canvas, angel, speakingAngel, speechText = '', motionBase = false) {
     canvas.width = 1080;
     canvas.height = 1600;
     const ctx = canvas.getContext('2d');
-    const { cards, fontSize } = posterLayout(ctx, this.data.shareSchedule);
+    const schedule = this.data.shareSchedule || [];
+    const booked = shareVideoKind(schedule) === 'booked';
+    const { cards, fontSize, rowStep, singleDay, cardGap } = posterLayout(ctx, schedule);
     ctx.clearRect(0, 0, 1080, 1600);
-    ctx.fillStyle = '#fff6e4';
+    const background = typeof ctx.createLinearGradient === 'function'
+      ? ctx.createLinearGradient(0, 0, 0, 1600) : null;
+    if (background && background.addColorStop) {
+      background.addColorStop(0, '#fffaf1');
+      background.addColorStop(1, '#f8eee1');
+    }
+    ctx.fillStyle = background || '#fff6e4';
     ctx.fillRect(0, 0, 1080, 1600);
+    ctx.globalAlpha = 0.38;
     ctx.fillStyle = '#f7dfb8';
     ctx.beginPath(); ctx.arc(980, 90, 150, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = '#f1cdd1';
     ctx.beginPath(); ctx.arc(75, 1510, 190, 0, Math.PI * 2); ctx.fill();
-    if (!speechText || !speakingAngel) ctx.drawImage(angel, 46, 50, 275, 275);
+    ctx.globalAlpha = 1;
 
     ctx.fillStyle = '#70452f';
-    ctx.font = '700 68px sans-serif';
-    ctx.textAlign = speechText && speakingAngel ? 'center' : 'left';
-    ctx.fillText('秀亚美容馆', speechText && speakingAngel ? 540 : 330, 132);
+    ctx.font = '700 70px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('秀亚美容馆', 540, 88);
     ctx.fillStyle = '#a3634a';
-    ctx.font = '600 44px sans-serif';
-    ctx.fillText('叮咚！预约小提醒', speechText && speakingAngel ? 540 : 334, 205);
-    ctx.fillStyle = '#7b6254';
-    ctx.font = '38px sans-serif';
-    ctx.fillText('看看已约时段，再挑个合适时间～', speechText && speakingAngel ? 540 : 334, 265);
-    ctx.textAlign = 'left';
+    ctx.font = '600 30px sans-serif';
+    ctx.fillText('叮咚！预约小提醒', 540, 190);
+    ctx.strokeStyle = '#dfb875';
+    ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.moveTo(452, 262); ctx.lineTo(628, 262); ctx.stroke();
+    ctx.fillStyle = '#786758';
+    ctx.font = '32px sans-serif';
+    ctx.fillText('看看已约时段，再挑个合适时间～', 540, 320);
 
     ctx.fillStyle = '#fffdfa';
-    roundedRect(ctx, 70, 304, 940, 86, 30); ctx.fill();
-    ctx.strokeStyle = '#e5cda7'; ctx.lineWidth = 3; ctx.stroke();
-    ctx.fillStyle = '#7d5a43'; ctx.font = '700 44px sans-serif'; ctx.textAlign = 'center';
-    ctx.fillText(this.data.shareRangeText, 540, 360);
-    ctx.textAlign = 'left';
+    roundedRect(ctx, 72, 422, 936, 104, 32); ctx.fill();
+    ctx.strokeStyle = '#e8d4b6'; ctx.lineWidth = 3; ctx.stroke();
+    ctx.fillStyle = '#70462f';
+    ctx.font = '700 48px sans-serif';
+    ctx.fillText(this.data.shareRangeText, 540, 474);
 
-    let y = 414;
-    cards.forEach(card => {
-      ctx.fillStyle = '#fffdf8';
-      roundedRect(ctx, 70, y, 940, card.height, 34); ctx.fill();
-      ctx.strokeStyle = '#ead7b7'; ctx.lineWidth = 3; ctx.stroke();
-      ctx.fillStyle = '#8b5d3f'; ctx.font = '700 50px sans-serif';
-      ctx.fillText(card.label, 112, y + 72);
-      ctx.fillStyle = card.allDayAvailable ? '#4b9b7c' : '#d59b73';
-      roundedRect(ctx, 802, y + 29, 168, 58, 29); ctx.fill();
-      ctx.fillStyle = '#fff'; ctx.font = '700 32px sans-serif'; ctx.textAlign = 'center';
-      ctx.fillText(card.intervals.length ? '已约时段' : (card.allDayAvailable ? '全天可约' : '查看空档'), 886, y + 70);
-      ctx.textAlign = 'left';
-      ctx.fillStyle = card.allDayAvailable ? '#246a53' : (card.intervals.length ? '#49392f' : '#87786e');
-      ctx.font = card.intervals.length ? `700 ${fontSize}px sans-serif` : '700 64px sans-serif';
-      card.lines.forEach((line, index) => ctx.fillText(line, 112, y + (card.intervals.length ? 122 + index * (fontSize + 22) : 166)));
-      y += card.height + 24;
+    const cardLeft = 72;
+    const cardWidth = 936;
+    let y = 554;
+    cards.forEach((card, cardIndex) => {
+      ctx.fillStyle = '#fffdf9';
+      roundedRect(ctx, cardLeft, y, cardWidth, card.height, singleDay ? 38 : 32); ctx.fill();
+      ctx.strokeStyle = '#e8d4b6'; ctx.lineWidth = 3; ctx.stroke();
+      const statusText = card.intervals.length ? '已约时段'
+        : card.allDayAvailable ? '全天可约'
+          : card.hasAvailableTime ? '有空档' : '看实时安排';
+      const badgeWidth = statusText === '全天可约' ? 176 : 148;
+      ctx.fillStyle = card.intervals.length || !card.allDayAvailable ? '#e1b78e' : '#4b9b7c';
+      roundedRect(ctx, 958 - badgeWidth, y + (singleDay ? 60 : 22), badgeWidth, singleDay ? 60 : 50, 28); ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.font = '700 30px sans-serif';
+      ctx.fillText(statusText, 958 - badgeWidth / 2, y + (singleDay ? 90 : 47));
+
+      if (singleDay) {
+        ctx.textAlign = 'left';
+        ctx.fillStyle = '#70452f';
+        ctx.font = '700 46px sans-serif';
+        ctx.fillText(card.intervals.length ? '已确认预约'
+          : card.date === todayDate() ? '今日可预约' : '预约空档提醒', 376, y + 62);
+        ctx.strokeStyle = '#e2c79f'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(376, y + 146); ctx.lineTo(942, y + 146); ctx.stroke();
+        if (card.intervals.length) {
+          ctx.fillStyle = '#63432f';
+          ctx.font = '700 ' + fontSize + 'px sans-serif';
+          card.intervals.forEach((item, index) => ctx.fillText(item.label, 376, y + 190 + index * rowStep));
+          const lastLine = y + 190 + (card.intervals.length - 1) * rowStep;
+          const divider = Math.max(y + 422, lastLine + 114);
+          ctx.strokeStyle = '#e8d4b6';
+          ctx.beginPath(); ctx.moveTo(376, divider); ctx.lineTo(942, divider); ctx.stroke();
+          ctx.fillStyle = '#8c634c';
+          ctx.font = '700 34px sans-serif';
+          ctx.fillText('其他空档欢迎预约', 376, divider + 40);
+        } else {
+          const message = card.allDayAvailable ? '全天都可以约～'
+            : card.hasAvailableTime ? (card.date === todayDate() ? '今天还有空档可约～' : '这天还有空档可约～')
+              : '请打开小程序查看可约时段';
+          let messageSize = card.allDayAvailable ? 60 : 52;
+          while (messageSize > 36) {
+            ctx.font = '700 ' + messageSize + 'px sans-serif';
+            if (ctx.measureText(message).width <= 820) break;
+            messageSize -= 2;
+          }
+          ctx.fillStyle = card.allDayAvailable ? '#246a53' : '#8c634c';
+          ctx.font = '700 ' + messageSize + 'px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText(message, 540, y + 268);
+          ctx.fillStyle = '#9a806a';
+          ctx.font = '30px sans-serif';
+          ctx.fillText('具体空档以小程序实时查询为准', 540, y + 352);
+          ctx.textAlign = 'left';
+        }
+        if (!motionBase && card.intervals.length && angel) {
+          const angelWidth = 214;
+          ctx.drawImage(angel, 134, y + 132, angelWidth, angelWidth * angel.height / angel.width);
+        }
+      } else {
+        ctx.textAlign = 'left';
+        ctx.fillStyle = '#70452f';
+        ctx.font = '700 40px sans-serif';
+        ctx.fillText(card.label, 112, y + 47);
+        ctx.strokeStyle = '#e2c79f'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(112, y + 82); ctx.lineTo(968, y + 82); ctx.stroke();
+        if (card.intervals.length) {
+          ctx.fillStyle = '#63432f';
+          ctx.font = '700 ' + fontSize + 'px sans-serif';
+          card.intervals.forEach((item, index) => ctx.fillText(item.label, 376, y + 116 + index * rowStep));
+        } else {
+          const message = card.allDayAvailable ? '全天都可以约～'
+            : card.hasAvailableTime ? '还有空档可约～' : '请查看实时可约时段';
+          ctx.fillStyle = card.allDayAvailable ? '#246a53' : '#8c634c';
+          ctx.font = '700 42px sans-serif';
+          ctx.fillText(message, 376, y + 128);
+        }
+        if (!motionBase && booked && cardIndex === 0 && angel) {
+          const angelWidth = 140;
+          ctx.drawImage(angel, 92, y + 46, angelWidth, angelWidth * angel.height / angel.width);
+        }
+      }
+      y += card.height + cardGap;
     });
 
-    if (speechText && speakingAngel) {
-      const angelWidth = 420;
-      const angelHeight = angelWidth * speakingAngel.height / speakingAngel.width;
-      ctx.drawImage(speakingAngel, (1080 - angelWidth) / 2, 700, angelWidth, angelHeight);
-      ctx.fillStyle = '#fffdfa';
-      roundedRect(ctx, 180, 1220, 720, 112, 42); ctx.fill();
-      ctx.strokeStyle = '#ead7b7'; ctx.lineWidth = 3; ctx.stroke();
-      ctx.fillStyle = '#70452f'; ctx.font = '700 48px sans-serif'; ctx.textAlign = 'center';
-      ctx.fillText(speechText, 540, 1292);
+    const bodyBottom = y - cardGap;
+    if (!singleDay && bodyBottom < 1350 && (booked || !speechText)) {
+      ctx.fillStyle = '#826a57';
+      ctx.font = '34px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('期待与你在秀亚美容馆相见～', 540, bodyBottom + 54);
     }
 
-    ctx.fillStyle = '#725948'; ctx.font = '700 40px sans-serif'; ctx.textAlign = 'center';
-    ctx.fillText('空档以小程序实时显示为准', 540, 1499);
-    ctx.fillStyle = '#ad8065'; ctx.font = '600 36px sans-serif';
-    ctx.fillText('秀亚美容馆 · 护理时间已含整理缓冲', 540, 1550);
+    if (!motionBase && !booked && speechText && speakingAngel) {
+      const availableHeight = Math.max(120, 1460 - bodyBottom - 52);
+      const angelWidth = Math.max(100, Math.min(250, availableHeight * speakingAngel.width / speakingAngel.height));
+      const angelHeight = angelWidth * speakingAngel.height / speakingAngel.width;
+      const angelY = bodyBottom + 12;
+      ctx.drawImage(speakingAngel, (1080 - angelWidth) / 2, angelY, angelWidth, angelHeight);
+      const bubbleTop = angelY + angelHeight - 48;
+      ctx.fillStyle = '#fffdfa';
+      roundedRect(ctx, 180, bubbleTop, 720, 88, 36); ctx.fill();
+      ctx.strokeStyle = '#ead7b7'; ctx.lineWidth = 3; ctx.stroke();
+      ctx.fillStyle = '#70452f';
+      let speechSize = 42;
+      while (speechSize > 30) {
+        ctx.font = '700 ' + speechSize + 'px sans-serif';
+        if (ctx.measureText(speechText).width <= 660) break;
+        speechSize -= 2;
+      }
+      ctx.font = '700 ' + speechSize + 'px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(speechText, 540, bubbleTop + 46);
+    }
+
+    if (singleDay && booked && bodyBottom < 1350) {
+      ctx.fillStyle = '#826a57';
+      ctx.font = '34px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('期待与你在秀亚美容馆相见～', 540, bodyBottom + 82);
+    }
+    ctx.fillStyle = '#725948'; ctx.font = '700 36px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('空档以小程序实时显示为准', 540, 1500);
+    ctx.fillStyle = '#ad8065'; ctx.font = '600 32px sans-serif';
+    ctx.fillText('秀亚美容馆 · 护理与整理时间已包含', 540, 1550);
     ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
   },
 
   async generateSharePoster() {
     if (!this.data.isAdmin || this.data.shareLoading || this.data.shareGenerating) return;
     if (!this.data.shareReady && !(await this.loadShareSchedule())) return;
     const version = this.shareVersion;
-    const emptyDay = this.data.shareSchedule.length === 1 && this.data.shareSchedule[0].intervals.length === 0
-      && (this.data.shareSchedule[0].allDayAvailable || this.data.shareSchedule[0].hasAvailableTime)
-      ? this.data.shareSchedule[0]
-      : null;
-    const speechText = emptyDay
-      ? `${emptyDay.date === todayDate() ? '今天' : '这天'}还有空档，等你来变美～`
-      : '';
+    const videoKind = shareVideoKind(this.data.shareSchedule);
+    const emptyDays = videoKind === 'empty' ? this.data.shareSchedule : [];
+    const hasAvailableDay = emptyDays.some(day => day.allDayAvailable || day.hasAvailableTime);
+    const speechText = videoKind !== 'empty' ? ''
+      : emptyDays.length === 1
+        ? (hasAvailableDay
+          ? `${emptyDays[0].date === todayDate() ? '今天' : '这天'}还有空档，等你来变美～`
+          : `${emptyDays[0].date === todayDate() ? '今天' : '这天'}暂时没有可约时段～`)
+        : (hasAvailableDay ? '这几天还有空档，等你来变美～' : '打开小程序看看可约时段～');
     if (this.shareAnimationTimer != null) clearTimeout(this.shareAnimationTimer);
     this.shareAnimationTimer = null;
-    this.setData({ shareGenerating: true, sharePosterPath: '', shareError: '', shareAnimationText: '', shareAnimationPlaying: false });
+    this.setData({ shareGenerating: true, sharePosterPath: '', shareError: '', shareAnimationText: '', shareAnimationPlaying: false, shareVideoBasePath: '', shareVideoPath: '', shareVideoKind: '' });
     try {
       const canvas = await resolveCanvas(this);
       const angel = await loadCanvasImage(canvas, SHARE_ANGEL_PATH);
@@ -312,8 +437,13 @@ Page({
         canvas, width: 1080, height: 1600, destWidth: 1080, destHeight: 1600, fileType: 'png', quality: 1,
         success: result => resolve(result.tempFilePath), fail: reject,
       }));
+      this.drawSharePoster(canvas, angel, speakingAngel, finalSpeechText, true);
+      const videoBasePath = await new Promise((resolve, reject) => wx.canvasToTempFilePath({
+        canvas, width: 1080, height: 1600, destWidth: 1080, destHeight: 1600, fileType: 'png', quality: 1,
+        success: result => resolve(result.tempFilePath), fail: reject,
+      }));
       if (version !== this.shareVersion || !this.data.isAdmin) return;
-      this.setData({ sharePosterPath: tempFilePath, shareAnimationText: finalSpeechText, shareAnimationPlaying: Boolean(finalSpeechText) }, () => {
+      this.setData({ sharePosterPath: tempFilePath, shareVideoBasePath: videoBasePath, shareVideoKind: videoKind, shareAnimationText: finalSpeechText, shareAnimationPlaying: Boolean(finalSpeechText) }, () => {
         if (finalSpeechText) this.scheduleShareAnimationFinish();
       });
       wx.showToast({ title: '分享图已生成', icon: 'success' });
@@ -343,7 +473,52 @@ Page({
     this.shareAnimationTimer = setTimeout(() => {
       this.shareAnimationTimer = null;
       if (this.data.shareAnimationPlaying) this.setData({ shareAnimationPlaying: false });
-    }, 4400);
+    }, 5400);
+  },
+
+  async saveShareVideo() {
+    if (!this.data.isAdmin || !this.data.shareVideoBasePath || !this.data.shareVideoKind || this.data.shareVideoWorking) return;
+    const version = this.shareVersion;
+    this.setData({ shareVideoWorking: true, shareError: '' });
+    let uploadedFileID = '';
+    let finalFileID = '';
+    let videoFileID = '';
+    try {
+      let filePath = this.data.shareVideoPath;
+      if (!filePath) {
+        const cloudPath = `share-video-input/${Date.now()}-${Math.random().toString(36).slice(2)}.png`;
+        const uploaded = await wx.cloud.uploadFile({ cloudPath, filePath: this.data.shareVideoBasePath });
+        uploadedFileID = uploaded.fileID;
+        const kind = this.data.shareVideoKind;
+        if (kind === 'empty') {
+          const finalUpload = await wx.cloud.uploadFile({ cloudPath: cloudPath.replace('input/', 'input/final-'), filePath: this.data.sharePosterPath });
+          finalFileID = finalUpload.fileID;
+        }
+        const dayCount = this.data.shareSchedule.length;
+        const rendered = await this.call('sharePosterVideo', {
+          fileID: uploadedFileID, finalFileID, kind,
+          dayCount: Math.max(1, Math.min(3, dayCount)),
+        });
+        videoFileID = rendered.fileID;
+        if (version !== this.shareVersion || !this.data.isAdmin) return;
+        const downloaded = await wx.cloud.downloadFile({ fileID: videoFileID });
+        filePath = downloaded.tempFilePath;
+        if (!filePath) throw new Error('动态视频下载失败，请重试。');
+        this.setData({ shareVideoPath: filePath });
+      }
+      await new Promise((resolve, reject) => wx.saveVideoToPhotosAlbum({ filePath, success: resolve, fail: reject }));
+      wx.showToast({ title: '动态视频已保存', icon: 'success' });
+    } catch (error) {
+      const message = String(error && (error.errMsg || error.message) || error);
+      const denied = /auth deny|authorize:fail|auth denied/i.test(message);
+      if (denied) wx.showModal({ title: '需要相册权限', content: '请允许保存视频到相册，再回来重试。', confirmText: '打开设置', success: result => { if (result.confirm) wx.openSetting(); } });
+      else this.setData({ shareError: /FunctionName|FUNCTION_NOT_FOUND|不存在/i.test(message)
+        ? '动态视频云端接口尚未部署，请先更新云函数。' : `动态视频保存失败：${message}` });
+    } finally {
+      const fileList = [uploadedFileID, finalFileID, videoFileID].filter(Boolean);
+      if (fileList.length) wx.cloud.deleteFile({ fileList }).catch(() => {});
+      this.setData({ shareVideoWorking: false });
+    }
   },
 
   saveSharePoster() {
